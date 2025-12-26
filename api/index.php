@@ -411,9 +411,10 @@ function renderProductCard($product)
                 // Badges for Recommendation Logic Visualization
                 if (isset($product['recommendation_score']) && $product['recommendation_score'] > 35) {
                     if (isset($_SESSION['user_id'])) {
-                        echo '<span class="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">For You</span>';
+                        echo '<span class="absolute top-2 left-2 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm">For You</span>';
                     } else {
-                        echo '<span class="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">Trending</span>';
+                        // Transparent Trending Badge
+                        echo '<span class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm border border-white/10">Trending</span>';
                     }
                 }
                 ?>
@@ -497,7 +498,9 @@ if ($page === 'home' && !$searchQuery) {
             // Acak urutan sedikit untuk kesan 'fresh' tiap reload meski ID-nya terbaru
             shuffle($rows);
             foreach ($rows as $p) {
-                $p['recommendation_score'] = rand(40, 80);
+                // Random Score 0-80. Threshold is 35. 
+                // Only ~56% of items will get the badge, making it look more like "Trending" picks rather than all new items.
+                $p['recommendation_score'] = rand(0, 80);
                 $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
             }
 
@@ -828,20 +831,15 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- Simplified Menu Links (No Search) -->
             <nav class="flex flex-col gap-4 font-bold text-gray-800 text-lg">
-                <a href="index.php?filter=all"
-                    class="flex justify-between items-center group py-2 border-b border-gray-50">
+                <a href="index.php?filter=all" class="flex items-center group py-2 border-b border-gray-50">
                     Shop All
-                    <span class="text-gray-300 group-hover:text-black transition">→</span>
                 </a>
-                <a href="index.php?filter=new"
-                    class="flex justify-between items-center group py-2 border-b border-gray-50">
+                <a href="index.php?filter=new" class="flex items-center group py-2 border-b border-gray-50">
                     New Releases
-                    <span class="text-gray-300 group-hover:text-black transition">→</span>
                 </a>
                 <a href="index.php?filter=sale"
-                    class="flex justify-between items-center group py-2 border-b border-gray-50 text-red-500">
+                    class="flex items-center group py-2 border-b border-gray-50 text-red-500">
                     Sale
-                    <span class="text-gray-300 group-hover:text-red-500 transition">→</span>
                 </a>
 
                 <?php if ($currentUser): ?>
