@@ -677,14 +677,20 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- Right: Actions -->
             <div class="flex items-center gap-3 sm:gap-6">
-                <!-- Search Trigger (Desktop) -->
-                <div class="relative hidden sm:block">
+                <!-- Search Trigger (Visible on Mobile now too) -->
+                <div class="relative">
                     <button
                         onclick="document.getElementById('search-container').classList.toggle('hidden'); document.getElementById('search-input').focus();"
                         class="text-[13px] font-bold text-blue-800 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center gap-1">
-                        Search
+                        <!-- Search Icon only on mobile, Text on desktop -->
+                        <span class="hidden sm:inline">Search</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:hidden" fill="none"
+                            viewBox="0 0 24 24" stroke="currentColor">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
                     </button>
-                    <!-- Desktop Search Dropdown -->
+                    <!-- Search Dropdown -->
                     <div id="search-container"
                         class="hidden absolute right-0 top-full mt-4 w-80 bg-white shadow-xl border border-gray-100 p-3 rounded-xl z-50">
                         <form method="GET" action="index.php" class="relative">
@@ -703,9 +709,9 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                     </div>
                 </div>
 
-                <!-- Desktop/Tablet User Actions -->
+                <!-- Icons (Cart & User) -->
                 <div class="flex items-center gap-4 sm:gap-5 text-gray-900">
-                    <!-- Cart (Visible on Mobile too) -->
+                    <!-- Cart -->
                     <a href="#" class="hover:text-blue-600 transition-colors relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -717,8 +723,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                             class="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">0</span>
                     </a>
 
-                    <!-- User Dropdown (Hidden on Mobile, moved to Bottom/Side) -->
-                    <div class="relative hidden sm:block" x-data="{ userOpen: false }">
+                    <!-- User Dropdown (Visible on Mobile) -->
+                    <div class="relative" x-data="{ userOpen: false }">
                         <button @click="userOpen = !userOpen" @click.outside="userOpen = false"
                             class="hover:text-blue-600 transition-colors block focus:outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
@@ -1072,54 +1078,6 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
             <p class="text-gray-400 text-sm">© 2025 sneakeazy Inc. All rights reserved.</p>
         </div>
     </footer>
-
-    <!-- BOTTOM MOBILE NAVIGATION (App-like) -->
-    <div
-        class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 flex justify-around py-3 pb-safe z-50 md:hidden shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
-        <a href="index.php"
-            class="flex flex-col items-center gap-1 text-gray-400 <?= ($page === 'home' && !$searchQuery) ? 'text-black' : '' ?>">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                <polyline points="9 22 9 12 15 12 15 22"></polyline>
-            </svg>
-            <span class="text-[10px] font-bold">Home</span>
-        </a>
-        <a href="javascript:void(0);" onclick="document.getElementById('mobile-search-trigger').click()"
-            class="flex flex-col items-center gap-1 text-gray-400">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="11" cy="11" r="8"></circle>
-                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-            </svg>
-            <span class="text-[10px] font-bold">Search</span>
-        </a>
-        <!-- Invisible trigger for Alpine -->
-        <button id="mobile-search-trigger" class="hidden" @click="mobileMenuOpen = true"></button>
-
-        <a href="#" class="flex flex-col items-center gap-1 text-gray-400">
-            <div class="relative">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <path d="M16 10a4 4 0 0 1-8 0"></path>
-                </svg>
-                <?php if (false): ?><span
-                        class="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full"></span><?php endif; ?>
-            </div>
-            <span class="text-[10px] font-bold">Cart</span>
-        </a>
-        <a href="<?= $currentUser ? '?page=detail' : '?page=login' ?>"
-            class="flex flex-col items-center gap-1 text-gray-400 <?= ($page === 'login' || $page === 'signup') ? 'text-black' : '' ?>">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-            <span class="text-[10px] font-bold"><?= $currentUser ? 'Me' : 'Login' ?></span>
-        </a>
-    </div>
 
 </body>
 
