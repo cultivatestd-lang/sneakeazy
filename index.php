@@ -490,15 +490,21 @@ if ($page === 'home' && !$searchQuery) {
             }
 
         } elseif ($filter === 'new') {
-            // NEW RELEASES: Produk terbaru (Cold Start / Acak)
+            // NEW RELEASES: Produk terbaru dengan logic "Roulette" Badge
             $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 50");
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            // Acak urutan sedikit untuk kesan 'fresh' tiap reload meski ID-nya terbaru
+
+            // Acak urutan (Roulette)
             shuffle($rows);
-            foreach ($rows as $p) {
-                // Random Score 0-80. Threshold is 35. 
-                // Only ~56% of items will get the badge, making it look more like "Trending" picks rather than all new items.
-                $p['recommendation_score'] = rand(0, 80);
+
+            // Assign score tinggi (badge muncul) hanya untuk 5 item pertama hasil shuffle
+            // Sisanya score 0 (tidak ada badge)
+            foreach ($rows as $index => $p) {
+                if ($index < 5) {
+                    $p['recommendation_score'] = 100; // Pasti muncul badge (> 35)
+                } else {
+                    $p['recommendation_score'] = 0;   // Tidak muncul badge
+                }
                 $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
             }
 
