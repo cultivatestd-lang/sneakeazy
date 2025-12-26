@@ -1,5 +1,9 @@
 <?php
 session_start();
+// Enable GZIP compression for faster content delivery
+if (extension_loaded('zlib')) {
+    ob_start('ob_gzhandler');
+}
 
 // --- KONFIGURASI & PEMUATAN DATABASE ---
 // Database MySQL menggunakan MAMP
@@ -467,12 +471,13 @@ $currentUser = isset($_SESSION['user_id']) ? true : false;
 // Jika user login, hitung preferensinya dari database
 $userPrefs = $currentUser ? getUserPreferences($_SESSION['user_id'], $pdo) : null;
 
-// LOGIKA HOME PAGE FEED UTAMA
+// --- LOGIKA HOME PAGE FEED UTAMA
 // Jika di halaman utama & User punya preferensi, kita urutkan produk berdasarkan selera user (Personalized Sorting)
 // ATAU jika user tidak login, kita gunakan Global Activity Score (Cold Start)
 if ($page === 'home' && !$searchQuery) {
     try {
-        $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id");
+        // OPTIMIZATION: Limit candidate pool to 300 newest items to prevent memory exhaustion and slow loops
+        $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 300");
         $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
 
         $scoredProducts = [];
@@ -514,8 +519,13 @@ if ($page === 'home' && !$searchQuery) {
         });
 
         $products = array_column($scoredProducts, 'product');
-        $totalProducts = count($products);
+        $totalProducts = count($products); // Total in current filtered view
         $displayProducts = array_slice($products, 0, 50);
+
+        // If total products in DB is needed for load more logic override
+        $countStmt = $pdo->query("SELECT COUNT(*) FROM products");
+        $totalProducts = $countStmt->fetchColumn();
+
     } catch (PDOException $e) {
         // Fallback to default will happen below if $displayProducts is not set
     }
@@ -576,7 +586,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
         if ($current_product) {
             // Reload all products for recommendations
-            $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id");
+            // OPTIMIZATION: Limit to random 100 items for variety without performance cost
+            $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY RAND() LIMIT 100");
             $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
             $recommendations = getRecommendations($current_product, $allProducts, $userPrefs, $pdo);
         }
@@ -592,6 +603,11 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>SNEAKEAZY</title>
+    <!-- Resource Hints for Speed -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+
     <script src="https://unpkg.com/@tailwindcss/browser@4"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <script>
