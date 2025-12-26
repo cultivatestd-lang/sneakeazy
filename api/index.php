@@ -1029,8 +1029,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                                 <?= $current_product['brand'] ?>
                             </span>
 
-                            <!-- Rating SHOWN here -->
-                            <div class="flex items-center gap-1 text-sm font-medium">
+                            <!-- Rating HIDDEN -->
+                            <div class="flex items-center gap-1 text-sm font-medium hidden">
                                 <span class="text-yellow-500 text-lg">★</span>
                                 <span><?= $current_product['rating'] ?></span>
                                 <span class="text-gray-400">(<?= $current_product['rating_count'] ?> reviews)</span>
@@ -1141,9 +1141,6 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                                     <div class="text-xs font-bold text-gray-900 truncate mb-1">
                                         <?= htmlspecialchars($rec['product_name']) ?>
                                     </div>
-                                    <div class="flex items-center text-[10px] text-yellow-500">
-                                        ★ <span class="text-gray-600 ml-1"><?= $rec['rating'] ?></span>
-                                    </div>
                                 </div>
                             </a>
                         </div>
@@ -1192,10 +1189,6 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                                         <div class="text-[10px] font-bold text-gray-400 uppercase mb-1"><?= $rv['brand'] ?></div>
                                         <div class="text-xs font-bold text-gray-900 truncate mb-1">
                                             <?= htmlspecialchars($rv['product_name']) ?>
-                                        </div>
-                                        <div class="flex items-center text-[10px] text-yellow-500">
-                                            ★ <span
-                                                class="text-gray-600 ml-1"><?= isset($rv['rating']) ? $rv['rating'] : '0.0' ?></span>
                                         </div>
                                     </div>
                                 </a>
