@@ -409,9 +409,12 @@ function renderProductCard($product)
 
                 <?php
                 // Badges for Recommendation Logic Visualization
-                if (isset($product['recommendation_score']) && $product['recommendation_score'] > 35) {
-                    if (!isset($_SESSION['user_id'])) {
-                        // Transparent Trending Badge
+                if (isset($product['badge_type'])) {
+                    if ($product['badge_type'] === 'new') {
+                        // NEW Badge: Minimalist, elegant, low transparency
+                        echo '<span class="absolute top-2 left-2 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm">New</span>';
+                    } elseif ($product['badge_type'] === 'trending') {
+                        // Trending Badge: Transparent Dark
                         echo '<span class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm border border-white/10">Trending</span>';
                     }
                 }
@@ -490,74 +493,64 @@ if ($page === 'home' && !$searchQuery) {
             }
 
         } elseif ($filter === 'new') {
-            // NEW RELEASES: Produk terbaru dengan logic "Roulette" Badge
-            $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 50");
+            // NEW RELEASES: Top 60 produk terbaru fixed.
+            // Badge: "New" (Minimalist elegant low transparency)
+            $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 60");
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Acak urutan (Roulette)
-            shuffle($rows);
-
-            // Assign score tinggi (badge muncul) hanya untuk 5 item pertama hasil shuffle
-            // Sisanya score 0 (tidak ada badge)
-            foreach ($rows as $index => $p) {
-                if ($index < 5) {
-                    $p['recommendation_score'] = 100; // Pasti muncul badge (> 35)
-                } else {
-                    $p['recommendation_score'] = 0;   // Tidak muncul badge
-                }
-                $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
+            foreach ($rows as $p) {
+                // Semua item di filter New Release mendapatkan badge NEW
+                $p['badge_type'] = 'new';
+                $scoredProducts[] = ['product' => $p, 'score' => 0]; // Score irrelevant for fixed list
             }
 
         } elseif ($filter === 'top-picks') {
             // TOP PICKS: Hanya untuk User Login (KNN / Collaborative / Personalized)
+            // No Badges explicitly requested ("hapus logo bintang ... tulisan for you ...")
             if (!$currentUser) {
-                // Redirect ke login jika belum login
                 header("Location: ?page=login");
                 exit;
             }
 
-            // Ambil kandidat produk untuk di-ranking
             $allProductsStmt = $pdo->query("SELECT * FROM products LIMIT 300");
             $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Gunakan logika scoring personalisasi yang sudah ada
             foreach ($allProducts as $p) {
                 $score = calculateUserScore($p, $userPrefs);
-                // Boost rating influence
                 $score += (isset($p['rating']) ? floatval($p['rating']) * 2 : 0);
-                // Serendipity
                 $score += rand(0, 5);
 
                 $p['recommendation_score'] = $score;
+                // No badge_type set
                 $scoredProducts[] = ['product' => $p, 'score' => $score];
             }
-            // Sort by Score Highest
             usort($scoredProducts, function ($a, $b) {
                 return $b['score'] <=> $a['score'];
             });
 
         } else {
-            // DEFAULT (SHOP ALL / HOME): Hybrid (Popularity + Personalization if logged in)
-            $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 200");
+            // DEFAULT (SHOP ALL / HOME):
+            // Load almost ALL products (Limit 1000 for safety, works with load more) for candidates.
+            // Logic: "hapus semua tanda trending, sisakan 8 teratas saja secara roulette"
+            $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 1000");
             $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            $globalScores = (!$currentUser) ? getGlobalActivityScores($pdo) : [];
+            // 1. Shuffle ALL candidates first to create "Roulette" base
+            shuffle($allProducts);
 
-            foreach ($allProducts as $p) {
-                $score = 0;
-                if ($currentUser && $userPrefs) {
-                    $score += calculateUserScore($p, $userPrefs);
-                    $score += (isset($p['rating']) ? floatval($p['rating']) : 0);
+            foreach ($allProducts as $index => $p) {
+                // Top 8 from the shuffled list get "Trending" status
+                if ($index < 8) {
+                    $p['badge_type'] = 'trending';
+                    $score = 1000; // Force top sort
                 } else {
-                    $gScore = $globalScores[$p['id']] ?? 0;
-                    $score += min(100, $gScore);
-                    $score += (isset($p['rating']) ? floatval($p['rating']) * 5 : 0);
+                    $score = 0; // No badge
                 }
-                $score += rand(0, 5);
-                $p['recommendation_score'] = $score;
+
                 $scoredProducts[] = ['product' => $p, 'score' => $score];
             }
-            // Sort
+
+            // Sort: Trending (1000) first, then the rest.
             usort($scoredProducts, function ($a, $b) {
                 return $b['score'] <=> $a['score'];
             });
