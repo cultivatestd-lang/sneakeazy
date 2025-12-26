@@ -411,8 +411,8 @@ function renderProductCard($product)
                 // Badges for Recommendation Logic Visualization
                 if (isset($product['badge_type'])) {
                     if ($product['badge_type'] === 'new') {
-                        // NEW Badge: Minimalist, elegant, low transparency
-                        echo '<span class="absolute top-2 left-2 bg-white/10 backdrop-blur-md text-white text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider border border-white/20 shadow-sm">New</span>';
+                        // NEW Badge: Black text, Light Italic, No Rounded (Square), Visible background
+                        echo '<span class="absolute top-0 left-0 bg-white/90 text-black text-[12px] font-light italic px-3 py-1 shadow-sm">New</span>';
                     } elseif ($product['badge_type'] === 'trending') {
                         // Trending Badge: Transparent Dark
                         echo '<span class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm border border-white/10">Trending</span>';
