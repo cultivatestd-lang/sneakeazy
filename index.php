@@ -472,64 +472,105 @@ $currentUser = isset($_SESSION['user_id']) ? true : false;
 $userPrefs = $currentUser ? getUserPreferences($_SESSION['user_id'], $pdo) : null;
 
 // --- LOGIKA HOME PAGE FEED UTAMA
-// Jika di halaman utama & User punya preferensi, kita urutkan produk berdasarkan selera user (Personalized Sorting)
-// ATAU jika user tidak login, kita gunakan Global Activity Score (Cold Start)
+// Memproses Filter: Sale, New, Top Picks, atau All (Default)
 if ($page === 'home' && !$searchQuery) {
-    try {
-        // OPTIMIZATION: Limit candidate pool to 300 newest items to prevent memory exhaustion and slow loops
-        $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 300");
-        $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
+    $filter = isset($_GET['filter']) ? $_GET['filter'] : 'all';
 
+    try {
         $scoredProducts = [];
 
-        // 1. Prepare Data
-        // If Anonymous: Get Global Activity Scores for Cold Start
-        $globalScores = (!$currentUser) ? getGlobalActivityScores($pdo) : [];
-
-        foreach ($allProducts as $key => $p) {
-            $score = 0;
-
-            if ($currentUser && $userPrefs) {
-                // LOGGED IN: Personalization + Pop
-                $score += calculateUserScore($p, $userPrefs);
-                // Also add global popularity slightly
-                $score += (isset($p['rating']) ? floatval($p['rating']) : 0);
-            } else {
-                // COLD START: Wisdom of Crowds (KNN/Global Score)
-                // Score = Total Interactions (Views + Hover + Ratings)
-                $gScore = $globalScores[$p['id']] ?? 0;
-                $score += min(100, $gScore); // Cap at 100 to allow some rating influence
-
-                // Add base rating impact
-                $score += (isset($p['rating']) ? floatval($p['rating']) * 5 : 0);
+        if ($filter === 'sale') {
+            // SALE: Produk diskon, acak (Rekomendasi ringan)
+            // Mengambil produk yang memiliki sale_price
+            $stmt = $pdo->query("SELECT * FROM products WHERE sale_price IS NOT NULL ORDER BY RAND() LIMIT 50");
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $p) {
+                // Beri score acak agar tetap ada variasi visual badge
+                $p['recommendation_score'] = rand(50, 90);
+                $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
             }
 
-            // Serendipity
-            $score += rand(0, 5);
+        } elseif ($filter === 'new') {
+            // NEW RELEASES: Produk terbaru (Cold Start / Acak)
+            $stmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 50");
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // Acak urutan sedikit untuk kesan 'fresh' tiap reload meski ID-nya terbaru
+            shuffle($rows);
+            foreach ($rows as $p) {
+                $p['recommendation_score'] = rand(40, 80);
+                $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
+            }
 
-            // Inject score into product for UI badges
-            $p['recommendation_score'] = $score;
+        } elseif ($filter === 'top-picks') {
+            // TOP PICKS: Hanya untuk User Login (KNN / Collaborative / Personalized)
+            if (!$currentUser) {
+                // Redirect ke login jika belum login
+                header("Location: ?page=login");
+                exit;
+            }
 
-            $scoredProducts[] = ['product' => $p, 'score' => $score];
+            // Ambil kandidat produk untuk di-ranking
+            $allProductsStmt = $pdo->query("SELECT * FROM products LIMIT 300");
+            $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Gunakan logika scoring personalisasi yang sudah ada
+            foreach ($allProducts as $p) {
+                $score = calculateUserScore($p, $userPrefs);
+                // Boost rating influence
+                $score += (isset($p['rating']) ? floatval($p['rating']) * 2 : 0);
+                // Serendipity
+                $score += rand(0, 5);
+
+                $p['recommendation_score'] = $score;
+                $scoredProducts[] = ['product' => $p, 'score' => $score];
+            }
+            // Sort by Score Highest
+            usort($scoredProducts, function ($a, $b) {
+                return $b['score'] <=> $a['score'];
+            });
+
+        } else {
+            // DEFAULT (SHOP ALL / HOME): Hybrid (Popularity + Personalization if logged in)
+            $allProductsStmt = $pdo->query("SELECT * FROM products ORDER BY id DESC LIMIT 200");
+            $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $globalScores = (!$currentUser) ? getGlobalActivityScores($pdo) : [];
+
+            foreach ($allProducts as $p) {
+                $score = 0;
+                if ($currentUser && $userPrefs) {
+                    $score += calculateUserScore($p, $userPrefs);
+                    $score += (isset($p['rating']) ? floatval($p['rating']) : 0);
+                } else {
+                    $gScore = $globalScores[$p['id']] ?? 0;
+                    $score += min(100, $gScore);
+                    $score += (isset($p['rating']) ? floatval($p['rating']) * 5 : 0);
+                }
+                $score += rand(0, 5);
+                $p['recommendation_score'] = $score;
+                $scoredProducts[] = ['product' => $p, 'score' => $score];
+            }
+            // Sort
+            usort($scoredProducts, function ($a, $b) {
+                return $b['score'] <=> $a['score'];
+            });
         }
-
-        // Sort
-        usort($scoredProducts, function ($a, $b) {
-            return $b['score'] <=> $a['score'];
-        });
 
         $products = array_column($scoredProducts, 'product');
         $totalProducts = count($products); // Total in current filtered view
         $displayProducts = array_slice($products, 0, 50);
 
         // If total products in DB is needed for load more logic override
-        $countStmt = $pdo->query("SELECT COUNT(*) FROM products");
-        $totalProducts = $countStmt->fetchColumn();
+        if ($filter === 'all') {
+            $countStmt = $pdo->query("SELECT COUNT(*) FROM products");
+            $totalProducts = $countStmt->fetchColumn();
+        }
 
     } catch (PDOException $e) {
-        // Fallback to default will happen below if $displayProducts is not set
+        $displayProducts = []; // Fallback empty
     }
 }
+
 
 // --- AJAX HANDLER: LOAD MORE ---
 if (isset($_GET['action']) && $_GET['action'] === 'load_more') {
@@ -662,23 +703,26 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
         x-data="{ searchOpen: false, mobileMenuOpen: false }">
         <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
 
-            <!-- Mobile Menu Button -->
-            <button @click="mobileMenuOpen = !mobileMenuOpen"
-                class="lg:hidden p-2 -ml-2 text-gray-800 focus:outline-none">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
-                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="3" y1="12" x2="21" y2="12"></line>
-                    <line x1="3" y1="6" x2="21" y2="6"></line>
-                    <line x1="3" y1="18" x2="21" y2="18"></line>
-                </svg>
-            </button>
+            <!-- Left Group: Burger & Logo -->
+            <div class="flex items-center gap-3 sm:gap-4">
+                <!-- Mobile Menu Button -->
+                <button @click="mobileMenuOpen = !mobileMenuOpen"
+                    class="lg:hidden p-2 -ml-2 text-gray-800 focus:outline-none hover:bg-gray-50 rounded-full transition-colors">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="3" y1="12" x2="21" y2="12"></line>
+                        <line x1="3" y1="6" x2="21" y2="6"></line>
+                        <line x1="3" y1="18" x2="21" y2="18"></line>
+                    </svg>
+                </button>
 
-            <!-- Logo -->
-            <a href="index.php"
-                class="text-xl sm:text-2xl font-black tracking-tighter text-black lowercase flex-shrink-0"
-                style="font-family: 'Poppins', sans-serif;">
-                sneak<span class="text-blue-600">eazy</span>
-            </a>
+                <!-- Logo -->
+                <a href="index.php"
+                    class="text-xl sm:text-2xl font-black tracking-tighter text-black lowercase flex-shrink-0"
+                    style="font-family: 'Poppins', sans-serif;">
+                    sneak<span class="text-blue-600">eazy</span>
+                </a>
+            </div>
 
             <!-- Desktop Nav -->
             <nav class="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wider uppercase text-gray-800">
@@ -776,39 +820,45 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
         </div>
 
         <!-- Mobile Menu (Drawer) -->
+        <!-- Mobile Menu (Drawer) -->
         <div x-show="mobileMenuOpen"
-            class="lg:hidden absolute top-16 left-0 w-full bg-white border-b border-gray-100 shadow-xl p-4 flex flex-col gap-4 z-40"
+            class="lg:hidden absolute top-16 left-0 w-full bg-white border-b border-gray-100 shadow-xl p-6 flex flex-col gap-4 z-40"
             x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2"
             x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
 
-            <!-- Mobile Search -->
-            <form method="GET" action="index.php" class="relative w-full">
-                <input type="text" name="search" value="<?= htmlspecialchars($searchQuery ?? '') ?>"
-                    placeholder="Search sneakers..."
-                    class="w-full bg-gray-100 border-none rounded-lg pl-4 pr-10 py-3 text-sm focus:ring-2 focus:ring-blue-500">
-                <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
-                        stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </button>
-            </form>
+            <!-- Simplified Menu Links (No Search) -->
+            <nav class="flex flex-col gap-4 font-bold text-gray-800 text-lg">
+                <a href="index.php?filter=all"
+                    class="flex justify-between items-center group py-2 border-b border-gray-50">
+                    Shop All
+                    <span class="text-gray-300 group-hover:text-black transition">→</span>
+                </a>
+                <a href="index.php?filter=new"
+                    class="flex justify-between items-center group py-2 border-b border-gray-50">
+                    New Releases
+                    <span class="text-gray-300 group-hover:text-black transition">→</span>
+                </a>
+                <a href="index.php?filter=sale"
+                    class="flex justify-between items-center group py-2 border-b border-gray-50 text-red-500">
+                    Sale
+                    <span class="text-gray-300 group-hover:text-red-500 transition">→</span>
+                </a>
 
-            <nav class="flex flex-col gap-2 font-bold text-gray-800">
-                <a href="index.php?filter=all" class="py-2 border-b border-gray-50">Shop All</a>
-                <a href="index.php?filter=new" class="py-2 border-b border-gray-50">New Releases</a>
-                <a href="index.php?filter=sale" class="py-2 border-b border-gray-50 text-red-500">Sale</a>
                 <?php if ($currentUser): ?>
-                    <a href="index.php?filter=foryou" class="py-2 text-blue-600">For You</a>
-                    <a href="?action=logout" class="py-2 text-sm text-gray-500 font-normal">Log Out
+                    <a href="index.php?filter=top-picks" class="flex justify-between items-center group py-2 text-blue-600">
+                        Top Picks
+                        <span class="text-blue-300 group-hover:text-blue-600 transition">★</span>
+                    </a>
+                    <a href="?action=logout" class="text-sm font-normal text-gray-400 mt-2">Log Out
                         (<?= htmlspecialchars($_SESSION['user_name']) ?>)</a>
                 <?php else: ?>
-                    <div class="flex gap-2 mt-2">
-                        <a href="?page=login" class="flex-1 text-center py-2 border border-gray-200 rounded-lg text-sm">Log
+                    <div class="grid grid-cols-2 gap-3 mt-4">
+                        <a href="?page=login"
+                            class="text-center py-3 border border-gray-200 rounded-xl text-sm hover:border-gray-900 transition">Log
                             In</a>
                         <a href="?page=signup"
-                            class="flex-1 text-center py-2 bg-black text-white rounded-lg text-sm shadow-md">Sign Up</a>
+                            class="text-center py-3 bg-black text-white rounded-xl text-sm shadow-md hover:bg-gray-800 transition">Sign
+                            Up</a>
                     </div>
                 <?php endif; ?>
             </nav>
