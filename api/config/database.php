@@ -5,12 +5,27 @@
  */
 
 // Database connection settings
-// Attempt to get from Environment Variables (for Vercel/Cloud), otherwise use Local MAMP defaults
-define('DB_HOST', getenv('DB_HOST') ?: 'localhost');
-define('DB_PORT', getenv('DB_PORT') ?: '8889');
-define('DB_NAME', getenv('DB_NAME') ?: 'shoe_recommender');
-define('DB_USER', getenv('DB_USER') ?: 'root');
-define('DB_PASS', getenv('DB_PASS') ?: 'root');
+// Attempt to get from Environment Variables (for Vercel/Cloud)
+$db_host = getenv('DB_HOST');
+$db_port = getenv('DB_PORT');
+$db_name = getenv('DB_NAME');
+$db_user = getenv('DB_USER');
+$db_pass = getenv('DB_PASS');
+
+// If Environment Variables are NOT set, fall back to Local MAMP defaults
+if (!$db_host) {
+    $db_host = '127.0.0.1'; // Use IP to force TCP connection, avoids "No such file or directory" socket error
+    $db_port = '8889';      // MAMP default port
+    $db_name = 'shoe_recommender';
+    $db_user = 'root';
+    $db_pass = 'root';
+}
+
+define('DB_HOST', $db_host);
+define('DB_PORT', $db_port ?: '3306'); // Default to standard MySQL port if env var exists but port doesn't
+define('DB_NAME', $db_name);
+define('DB_USER', $db_user);
+define('DB_PASS', $db_pass);
 
 /**
  * Get database connection
