@@ -1179,19 +1179,27 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                 }
                 ?>
                 <div class="mt-8 border-t border-gray-100 pt-12">
-                    <h3 class="text-xl font-bold text-gray-900 mb-6 italic" style="font-family: 'Playfair Display', serif;">
-                        Recently Viewed</h3>
-                    <div class="grid grid-cols-3 gap-3 sm:gap-6">
+                    <h3 class="text-2xl font-black text-gray-900 mb-6">Recently Viewed</h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <?php foreach ($rvProducts as $rv): ?>
-                            <a href="?page=detail&product_id=<?= $rv['id'] ?>" class="group block">
-                                <div class="bg-gray-50 rounded-lg p-4 mb-2 relative overflow-hidden">
-                                    <img src="<?= $rv['image_url'] ?>" alt="<?= htmlspecialchars($rv['product_name']) ?>"
-                                        class="w-full aspect-square object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500">
-                                </div>
-                                <h4 class="text-xs font-bold text-gray-900 truncate"><?= htmlspecialchars($rv['product_name']) ?>
-                                </h4>
-                                <p class="text-[10px] text-gray-500 uppercase tracking-widest"><?= $rv['brand'] ?></p>
-                            </a>
+                            <div class="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition">
+                                <a href="?page=detail&product_id=<?= $rv['id'] ?>" class="block h-full">
+                                    <div class="relative aspect-square w-full bg-gray-50 p-4">
+                                        <img src="<?= $rv['image_url'] ?>" alt="<?= htmlspecialchars($rv['product_name']) ?>"
+                                            class="h-full w-full object-contain mix-blend-multiply hover:scale-110 transition-transform duration-300">
+                                    </div>
+                                    <div class="p-3">
+                                        <div class="text-[10px] font-bold text-gray-400 uppercase mb-1"><?= $rv['brand'] ?></div>
+                                        <div class="text-xs font-bold text-gray-900 truncate mb-1">
+                                            <?= htmlspecialchars($rv['product_name']) ?>
+                                        </div>
+                                        <div class="flex items-center text-[10px] text-yellow-500">
+                                            ★ <span
+                                                class="text-gray-600 ml-1"><?= isset($rv['rating']) ? $rv['rating'] : '0.0' ?></span>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
                         <?php endforeach; ?>
                     </div>
                 </div>
