@@ -1175,19 +1175,22 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                     }
                 }
                 ?>
-                <div class="mt-8 border-t border-gray-100 pt-12">
-                    <h3 class="text-2xl font-black text-gray-900 mb-6">Recently Viewed</h3>
-                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <!-- Reduced Spacing & Horizontal Swipe -->
+                <div class="mt-4 border-t border-gray-100 pt-8">
+                    <h3 class="text-2xl font-black text-gray-900 mb-4">Recently Viewed</h3>
+                    <div
+                        class="flex overflow-x-auto gap-4 pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide snap-x snap-mandatory">
                         <?php foreach ($rvProducts as $rv): ?>
-                            <div class="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition">
+                            <div
+                                class="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition flex-shrink-0 w-32 sm:w-44 snap-start">
                                 <a href="?page=detail&product_id=<?= $rv['id'] ?>" class="block h-full">
-                                    <div class="relative aspect-square w-full bg-gray-50 p-4">
+                                    <div class="relative aspect-square w-full bg-gray-50 p-3">
                                         <img src="<?= $rv['image_url'] ?>" alt="<?= htmlspecialchars($rv['product_name']) ?>"
                                             class="h-full w-full object-contain mix-blend-multiply hover:scale-110 transition-transform duration-300">
                                     </div>
-                                    <div class="p-3">
-                                        <div class="text-[10px] font-bold text-gray-400 uppercase mb-1"><?= $rv['brand'] ?></div>
-                                        <div class="text-xs font-bold text-gray-900 truncate mb-1">
+                                    <div class="p-2">
+                                        <div class="text-[9px] font-bold text-gray-400 uppercase mb-0.5"><?= $rv['brand'] ?></div>
+                                        <div class="text-[10px] sm:text-xs font-bold text-gray-900 truncate">
                                             <?= htmlspecialchars($rv['product_name']) ?>
                                         </div>
                                     </div>
