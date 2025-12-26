@@ -991,6 +991,23 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- DETAIL PAGE -->
         <?php elseif ($page === 'detail' && $current_product): ?>
+            <?php
+            // --- RECENTLY VIEWED TRACKING ---
+            // Simpan history view ke Session
+            if (!isset($_SESSION['recently_viewed'])) {
+                $_SESSION['recently_viewed'] = [];
+            }
+            // Hapus jika sudah ada (agar nanti dipush ke paling depan/terbaru)
+            if (($key = array_search($current_product['id'], $_SESSION['recently_viewed'])) !== false) {
+                unset($_SESSION['recently_viewed'][$key]);
+            }
+            // Tambahkan ke depan
+            array_unshift($_SESSION['recently_viewed'], $current_product['id']);
+            // Limit simpan 10 item terakhir
+            if (count($_SESSION['recently_viewed']) > 10) {
+                array_pop($_SESSION['recently_viewed']);
+            }
+            ?>
 
             <div class="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="flex flex-col md:flex-row">
@@ -1086,7 +1103,7 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                 </div>
             </div>
 
-            <!-- RECOMMENDATIONS -->
+            <!-- RECOMMENDATIONS: Horizontal Interactive Swipe -->
             <div class="mt-16">
                 <div class="flex items-end justify-between mb-8">
                     <div>
@@ -1097,24 +1114,34 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                             <p class="text-sm text-gray-500 mt-1">Curated selection based on category and popularity.</p>
                         <?php endif; ?>
                     </div>
+                    <!-- Swipe indicators hint (desktop) -->
+                    <div class="hidden md:flex gap-2 text-gray-300">
+                        <span class="text-xs">Scroll for more →</span>
+                    </div>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <!-- Container Carousel -->
+                <div
+                    class="flex overflow-x-auto gap-4 pb-8 -mx-4 px-4 sm:mx-0 sm:px-0 scrollbar-hide snap-x snap-mandatory">
                     <?php foreach ($recommendations as $rec): ?>
                         <div
-                            class="group bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition">
-                            <a href="?page=detail&product_id=<?= $rec['id'] ?>">
+                            class="bg-white rounded-xl overflow-hidden border border-gray-100 hover:shadow-md transition flex-shrink-0 w-44 sm:w-56 snap-start">
+                            <a href="?page=detail&product_id=<?= $rec['id'] ?>" class="block h-full">
                                 <div class="relative aspect-square w-full bg-gray-50 p-4">
                                     <img src="<?= $rec['image_url'] ?>" alt="<?= htmlspecialchars($rec['product_name']) ?>"
-                                        class="h-full w-full object-contain mix-blend-multiply group-hover:scale-110 transition-transform duration-300">
+                                        class="h-full w-full object-contain mix-blend-multiply hover:scale-110 transition-transform duration-300"
+                                        loading="lazy">
+                                    <?php if ($rec['sale_price']): ?>
+                                        <span
+                                            class="absolute top-2 right-2 bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">SALE</span>
+                                    <?php endif; ?>
                                 </div>
-                                <div class="p-4">
-                                    <div class="text-xs font-bold text-gray-400 uppercase mb-1"><?= $rec['brand'] ?></div>
-                                    <div class="text-sm font-bold text-gray-900 truncate mb-1">
+                                <div class="p-3">
+                                    <div class="text-[10px] font-bold text-gray-400 uppercase mb-1"><?= $rec['brand'] ?></div>
+                                    <div class="text-xs font-bold text-gray-900 truncate mb-1">
                                         <?= htmlspecialchars($rec['product_name']) ?>
                                     </div>
-                                    <!-- Rating SHOWN on recommendations inside detail view? Maybe useful, let's show lightly -->
-                                    <div class="flex items-center text-xs text-yellow-500">
+                                    <div class="flex items-center text-[10px] text-yellow-500">
                                         ★ <span class="text-gray-600 ml-1"><?= $rec['rating'] ?></span>
                                     </div>
                                 </div>
@@ -1123,6 +1150,52 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                     <?php endforeach; ?>
                 </div>
             </div>
+
+            <!-- RECENTLY VIEWED SECTION -->
+            <?php
+            // Logic ambil data Recently Viewed dari Session
+            // Kecualikan produk yang sedang dilihat sekarang agar tidak duplikat visual
+            $recentIds = isset($_SESSION['recently_viewed']) ? $_SESSION['recently_viewed'] : [];
+            $recentIdsToShow = array_filter($recentIds, function ($id) use ($current_product) {
+                return $id != $current_product['id'];
+            });
+            $recentIdsToShow = array_slice($recentIdsToShow, 0, 3); // Ambil 3 teratas
+        
+            if (!empty($recentIdsToShow)) {
+                $placeholders = implode(',', array_fill(0, count($recentIdsToShow), '?'));
+                $rvStmt = $pdo->prepare("SELECT * FROM products WHERE id IN ($placeholders)");
+                $rvStmt->execute($recentIdsToShow);
+                $rvProductsRaw = $rvStmt->fetchAll(PDO::FETCH_ASSOC);
+
+                // Urutkan kembali sesuai urutan di session (karena IN query tidak menjamin urutan)
+                $rvProducts = [];
+                foreach ($recentIdsToShow as $id) {
+                    foreach ($rvProductsRaw as $p) {
+                        if ($p['id'] == $id) {
+                            $rvProducts[] = $p;
+                            break;
+                        }
+                    }
+                }
+                ?>
+                <div class="mt-8 border-t border-gray-100 pt-12">
+                    <h3 class="text-xl font-bold text-gray-900 mb-6 italic" style="font-family: 'Playfair Display', serif;">
+                        Recently Viewed</h3>
+                    <div class="grid grid-cols-3 gap-3 sm:gap-6">
+                        <?php foreach ($rvProducts as $rv): ?>
+                            <a href="?page=detail&product_id=<?= $rv['id'] ?>" class="group block">
+                                <div class="bg-gray-50 rounded-lg p-4 mb-2 relative overflow-hidden">
+                                    <img src="<?= $rv['image_url'] ?>" alt="<?= htmlspecialchars($rv['product_name']) ?>"
+                                        class="w-full aspect-square object-contain mix-blend-multiply group-hover:scale-105 transition-transform duration-500">
+                                </div>
+                                <h4 class="text-xs font-bold text-gray-900 truncate"><?= htmlspecialchars($rv['product_name']) ?>
+                                </h4>
+                                <p class="text-[10px] text-gray-500 uppercase tracking-widest"><?= $rv['brand'] ?></p>
+                            </a>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php } ?>
 
         <?php endif; ?>
 
