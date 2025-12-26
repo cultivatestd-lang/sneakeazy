@@ -210,7 +210,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  */
 function getUserPreferences($userId, $pdo)
 {
-    if (!$userId) return null;
+    if (!$userId)
+        return null;
 
     try {
         $stmt = $pdo->prepare("
@@ -222,7 +223,8 @@ function getUserPreferences($userId, $pdo)
         $stmt->execute([$userId]);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        if (empty($rows)) return null;
+        if (empty($rows))
+            return null;
 
         $cats = [];
         $brands = [];
@@ -231,7 +233,7 @@ function getUserPreferences($userId, $pdo)
             $cat = $r['category'] ?? 'Sneakers';
             // Weight: Rating counts more than views
             $w = $r['rating'] ? ($r['rating'] * 1.5) : ($r['view_score'] * 1.0);
-            
+
             $cats[$cat] = ($cats[$cat] ?? 0) + $w;
             $brands[$r['brand']] = ($brands[$r['brand']] ?? 0) + $w;
         }
@@ -250,9 +252,11 @@ function getUserPreferences($userId, $pdo)
  * "Users who liked THIS also liked THAT"
  * Menggunakan KNN-like approach berdasarkan intersection user interactions.
  */
-function getCollaborativeScores($targetProductId, $pdo) {
-    if (!$targetProductId || !$pdo) return [];
-    
+function getCollaborativeScores($targetProductId, $pdo)
+{
+    if (!$targetProductId || !$pdo)
+        return [];
+
     // Cari produk lain yang dilihat/dirating oleh user yang JUGA melihat targetProduct
     $sql = "
         SELECT 
@@ -267,7 +271,7 @@ function getCollaborativeScores($targetProductId, $pdo) {
         ORDER BY interaction_weight DESC
         LIMIT 20
     ";
-    
+
     try {
         $stmt = $pdo->prepare($sql);
         $stmt->execute([$targetProductId, $targetProductId]);
@@ -281,7 +285,8 @@ function getCollaborativeScores($targetProductId, $pdo) {
  * Cold Start / Global Trending Scores
  * Untuk user yang belum login, gunakan data kolektif ("Wisdom of the Crowd").
  */
-function getGlobalActivityScores($pdo) {
+function getGlobalActivityScores($pdo)
+{
     // Total skor = view_score + (rating * 2) dari semua user
     $sql = "
         SELECT product_id, SUM(view_score + (IFNULL(rating,0)*2)) as popularity
@@ -298,9 +303,10 @@ function getGlobalActivityScores($pdo) {
 
 function calculateUserScore($product, $userPrefs)
 {
-    if (!$userPrefs) return 0;
+    if (!$userPrefs)
+        return 0;
     $score = 0;
-    
+
     // Preference Matching
     if (isset($product['category']) && in_array($product['category'], $userPrefs['categories'])) {
         $rank = array_search($product['category'], $userPrefs['categories']);
@@ -324,18 +330,21 @@ function getRecommendations($currentProduct, $allProducts, $userPrefs, $pdo)
 {
     $recommendations = [];
     $scores = [];
-    
+
     // 1. Get Collaborative Data (Who else liked this?)
     $collabScores = getCollaborativeScores($currentProduct['id'], $pdo);
 
     foreach ($allProducts as $p) {
-        if ($p['id'] == $currentProduct['id']) continue;
+        if ($p['id'] == $currentProduct['id'])
+            continue;
 
         $score = 0;
 
         // A. Content Relevance
-        if (isset($p['category']) && $p['category'] === ($currentProduct['category']??'')) $score += 20;
-        if ($p['brand'] === $currentProduct['brand']) $score += 10;
+        if (isset($p['category']) && $p['category'] === ($currentProduct['category'] ?? ''))
+            $score += 20;
+        if ($p['brand'] === $currentProduct['brand'])
+            $score += 10;
 
         // B. Personalization (if logged in)
         if ($userPrefs) {
@@ -347,7 +356,7 @@ function getRecommendations($currentProduct, $allProducts, $userPrefs, $pdo)
             // Boost significantly if found in collaborative neighbor list
             $cScore = $collabScores[$p['id']];
             // Logarithmic boost to prevent older, massive products from dominating purely by count
-            $score += min(50, $cScore * 2); 
+            $score += min(50, $cScore * 2);
         }
 
         // D. Social Proof
@@ -393,6 +402,17 @@ function renderProductCard($product)
                     <span
                         class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Sale</span>
                 <?php endif; ?>
+                
+                    <?php
+                    // Badges for Recommendation Logic Visualization
+                    if (isset($product['recommendation_score']) && $product['recommendation_score'] > 35) {
+                        if (isset($_SESSION['user_id'])) {
+                            echo '<span class="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">For You</span>';
+                        } else {
+                            echo '<span class="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">Trending</span>';
+                        }
+                    }
+                    ?>
             </div>
             <!-- Content -->
             <div class="p-4">
@@ -481,12 +501,17 @@ if ($page === 'home' && !$searchQuery) {
 
             // Serendipity
             $score += rand(0, 5);
+
+            // Inject score into product for UI badges
+            $p['recommendation_score'] = $score;
+
             $scoredProducts[] = ['product' => $p, 'score' => $score];
         }
 
         // Sort
         usort($scoredProducts, function ($a, $b) {
-            return $b['score'] <=> $a['score']; });
+            return $b['score'] <=> $a['score'];
+        });
 
         $products = array_column($scoredProducts, 'product');
         $totalProducts = count($products);
