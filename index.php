@@ -413,9 +413,6 @@ function renderProductCard($product)
                     if ($product['badge_type'] === 'new') {
                         // NEW Badge: Black text, Light Italic, No Rounded (Square), Visible background
                         echo '<span class="absolute top-0 left-0 bg-white/90 text-black text-[12px] font-light italic px-3 py-1 shadow-sm">New</span>';
-                    } elseif ($product['badge_type'] === 'trending') {
-                        // Trending Badge: Bottom Left, Italic Light, No Icon (Square-ish)
-                        echo '<span class="absolute bottom-0 left-0 bg-black/70 backdrop-blur-sm text-white text-[11px] font-light italic px-3 py-1 shadow-sm">Trending</span>';
                     }
                 }
                 ?>
@@ -539,12 +536,11 @@ if ($page === 'home' && !$searchQuery) {
             shuffle($allProducts);
 
             foreach ($allProducts as $index => $p) {
-                // Top 8 from the shuffled list get "Trending" status
+                // Top 8 from the shuffled list get "Trending" status (sorted to top), but NO badge displayed
                 if ($index < 8) {
-                    $p['badge_type'] = 'trending';
                     $score = 1000; // Force top sort
                 } else {
-                    $score = 0; // No badge
+                    $score = 0;
                 }
 
                 $scoredProducts[] = ['product' => $p, 'score' => $score];
