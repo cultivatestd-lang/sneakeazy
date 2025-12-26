@@ -741,7 +741,7 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                 <div class="relative">
                     <button
                         onclick="document.getElementById('search-container').classList.toggle('hidden'); document.getElementById('search-input').focus();"
-                        class="text-[13px] font-bold text-blue-800 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center gap-1">
+                        class="text-[13px] font-medium text-gray-400 uppercase tracking-wider hover:text-blue-500/80 transition-colors flex items-center gap-1">
                         <!-- Search Icon only on mobile, Text on desktop -->
                         <span class="hidden sm:inline">Search</span>
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 sm:hidden" fill="none"
@@ -770,17 +770,17 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                 </div>
 
                 <!-- Icons (Cart & User) -->
-                <div class="flex items-center gap-4 sm:gap-5 text-gray-900">
+                <div class="flex items-center gap-4 sm:gap-5 text-gray-400 hover:text-blue-500/80">
                     <!-- Cart -->
                     <a href="#" class="hover:text-blue-600 transition-colors relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                             <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
                             <line x1="3" y1="6" x2="21" y2="6"></line>
                             <path d="M16 10a4 4 0 0 1-8 0"></path>
                         </svg>
                         <span
-                            class="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">0</span>
+                            class="absolute -top-1.5 -right-1.5 bg-blue-500/80 text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full shadow-sm">0</span>
                     </a>
 
                     <!-- User Dropdown (Visible on Mobile) -->
@@ -788,7 +788,7 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                         <button @click="userOpen = !userOpen" @click.outside="userOpen = false"
                             class="hover:text-blue-600 transition-colors block focus:outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
-                                fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                                fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"
                                 stroke-linejoin="round">
                                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                                 <circle cx="12" cy="7" r="4"></circle>
