@@ -402,17 +402,17 @@ function renderProductCard($product)
                     <span
                         class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Sale</span>
                 <?php endif; ?>
-                
-                    <?php
-                    // Badges for Recommendation Logic Visualization
-                    if (isset($product['recommendation_score']) && $product['recommendation_score'] > 35) {
-                        if (isset($_SESSION['user_id'])) {
-                            echo '<span class="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">For You</span>';
-                        } else {
-                            echo '<span class="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">Trending</span>';
-                        }
+
+                <?php
+                // Badges for Recommendation Logic Visualization
+                if (isset($product['recommendation_score']) && $product['recommendation_score'] > 35) {
+                    if (isset($_SESSION['user_id'])) {
+                        echo '<span class="absolute top-2 left-2 bg-blue-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">For You</span>';
+                    } else {
+                        echo '<span class="absolute top-2 left-2 bg-orange-500 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-md">Trending</span>';
                     }
-                    ?>
+                }
+                ?>
             </div>
             <!-- Content -->
             <div class="p-4">
@@ -642,43 +642,49 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 <body class="bg-gray-50 text-slate-900 min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="sticky top-0 z-50 bg-white border-b border-gray-100" x-data="{ searchOpen: false }">
-        <div class="max-w-[1440px] mx-auto px-6 h-20 flex items-center justify-between">
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100 transition-all duration-300"
+        x-data="{ searchOpen: false, mobileMenuOpen: false }">
+        <div class="max-w-[1440px] mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
 
-            <!-- Left: Logo & Nav -->
-            <div class="flex items-center gap-12">
-                <!-- Logo -->
-                <a href="index.php" class="text-2xl font-black tracking-tighter text-black lowercase"
-                    style="font-family: 'Poppins', sans-serif;">
-                    sneak<span class="text-blue-600">eazy</span>
-                </a>
+            <!-- Mobile Menu Button -->
+            <button @click="mobileMenuOpen = !mobileMenuOpen"
+                class="lg:hidden p-2 -ml-2 text-gray-800 focus:outline-none">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12"></line>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <line x1="3" y1="18" x2="21" y2="18"></line>
+                </svg>
+            </button>
 
-                <!-- Desktop Nav -->
-                <nav
-                    class="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wider uppercase text-gray-800">
-                    <a href="index.php?filter=all" class="hover:text-blue-600 transition-colors">Shop By</a>
-                    <a href="index.php?filter=new" class="hover:text-blue-600 transition-colors">Releases</a>
-                    <a href="index.php?filter=brands" class="hover:text-blue-600 transition-colors">Brands</a>
-                    <a href="index.php?filter=features" class="hover:text-blue-600 transition-colors">Features</a>
-                    <a href="index.php?filter=sale" class="text-red-500 hover:text-red-600 transition-colors">Sale</a>
-                    <?php if ($currentUser): ?>
-                        <a href="index.php?filter=foryou" class="text-blue-600">For You</a>
-                    <?php endif; ?>
-                </nav>
-            </div>
+            <!-- Logo -->
+            <a href="index.php"
+                class="text-xl sm:text-2xl font-black tracking-tighter text-black lowercase flex-shrink-0"
+                style="font-family: 'Poppins', sans-serif;">
+                sneak<span class="text-blue-600">eazy</span>
+            </a>
+
+            <!-- Desktop Nav -->
+            <nav class="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wider uppercase text-gray-800">
+                <a href="index.php?filter=all" class="hover:text-blue-600 transition-colors">Shop By</a>
+                <a href="index.php?filter=new" class="hover:text-blue-600 transition-colors">Releases</a>
+                <a href="index.php?filter=brands" class="hover:text-blue-600 transition-colors">Brands</a>
+                <a href="index.php?filter=sale" class="text-red-500 hover:text-red-600 transition-colors">Sale</a>
+                <?php if ($currentUser): ?>
+                    <a href="index.php?filter=foryou" class="text-blue-600">For You</a>
+                <?php endif; ?>
+            </nav>
 
             <!-- Right: Actions -->
-            <div class="flex items-center gap-6">
-
-                <!-- Search Trigger -->
-                <div class="relative">
+            <div class="flex items-center gap-3 sm:gap-6">
+                <!-- Search Trigger (Desktop) -->
+                <div class="relative hidden sm:block">
                     <button
                         onclick="document.getElementById('search-container').classList.toggle('hidden'); document.getElementById('search-input').focus();"
                         class="text-[13px] font-bold text-blue-800 uppercase tracking-wider hover:text-blue-600 transition-colors flex items-center gap-1">
                         Search
                     </button>
-
-                    <!-- Search Overlay/Dropdown -->
+                    <!-- Desktop Search Dropdown -->
                     <div id="search-container"
                         class="hidden absolute right-0 top-full mt-4 w-80 bg-white shadow-xl border border-gray-100 p-3 rounded-xl z-50">
                         <form method="GET" action="index.php" class="relative">
@@ -697,21 +703,22 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                     </div>
                 </div>
 
-                <!-- Icons -->
-                <div class="flex items-center gap-5 text-gray-900">
-                    <!-- Support (Headset) -->
-                    <a href="#" class="hover:text-blue-600 transition-colors hidden sm:block">
+                <!-- Desktop/Tablet User Actions -->
+                <div class="flex items-center gap-4 sm:gap-5 text-gray-900">
+                    <!-- Cart (Visible on Mobile too) -->
+                    <a href="#" class="hover:text-blue-600 transition-colors relative">
                         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
                             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M3 18v-6a9 9 0 0 1 18 0v6"></path>
-                            <path
-                                d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3zM3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z">
-                            </path>
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <path d="M16 10a4 4 0 0 1-8 0"></path>
                         </svg>
+                        <span
+                            class="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">0</span>
                     </a>
 
-                    <!-- User / Login Dropdown -->
-                    <div class="relative" x-data="{ userOpen: false }">
+                    <!-- User Dropdown (Hidden on Mobile, moved to Bottom/Side) -->
+                    <div class="relative hidden sm:block" x-data="{ userOpen: false }">
                         <button @click="userOpen = !userOpen" @click.outside="userOpen = false"
                             class="hover:text-blue-600 transition-colors block focus:outline-none">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"
@@ -723,15 +730,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                         </button>
 
                         <!-- Dropdown Menu -->
-                        <div x-show="userOpen" x-transition:enter="transition ease-out duration-100"
-                            x-transition:enter-start="transform opacity-0 scale-95"
-                            x-transition:enter-end="transform opacity-100 scale-100"
-                            x-transition:leave="transition ease-in duration-75"
-                            x-transition:leave-start="transform opacity-100 scale-100"
-                            x-transition:leave-end="transform opacity-0 scale-95"
-                            class="absolute right-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-left"
-                            style="display: none;">
-
+                        <div x-show="userOpen" style="display: none;"
+                            class="absolute right-0 mt-3 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-2 z-50 text-left">
                             <?php if ($currentUser): ?>
                                 <div class="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
                                     <p class="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Signed in as</p>
@@ -739,58 +739,61 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                                         <?= htmlspecialchars($_SESSION['user_name']) ?>
                                     </p>
                                 </div>
-                                <a href="#"
-                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">Profile</a>
-                                <a href="#"
-                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">Settings</a>
-                                <div class="h-px bg-gray-100 my-1"></div>
                                 <a href="?action=logout"
                                     class="block px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors font-medium">Log
                                     Out</a>
                             <?php else: ?>
-                                <div class="px-4 py-3 border-b border-gray-100">
-                                    <p class="text-sm font-medium text-gray-900">Welcome!</p>
-                                    <p class="text-xs text-gray-500">Sign in to get personalized picks.</p>
-                                </div>
-                                <a href="?page=login"
-                                    class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors">Log
+                                <a href="?page=login" class="block px-4 py-2 text-sm text-gray-700 hover:text-blue-600">Log
                                     In</a>
-                                <a href="?page=signup"
-                                    class="block px-4 py-2 text-sm font-bold text-blue-600 hover:bg-blue-50 transition-colors">Register</a>
+                                <a href="?page=signup" class="block px-4 py-2 text-sm font-bold text-blue-600">Register</a>
                             <?php endif; ?>
                         </div>
                     </div>
-
-                    <!-- Wishlist (Heart) -->
-                    <a href="#" class="hover:text-blue-600 transition-colors hidden sm:block">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path
-                                d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z">
-                            </path>
-                        </svg>
-                    </a>
-
-                    <!-- Cart (Bag) -->
-                    <a href="#" class="hover:text-blue-600 transition-colors relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <path d="M16 10a4 4 0 0 1-8 0"></path>
-                        </svg>
-                        <span
-                            class="absolute -top-1.5 -right-1.5 bg-black text-white text-[9px] font-bold h-4 w-4 flex items-center justify-center rounded-full">0</span>
-                    </a>
                 </div>
             </div>
         </div>
 
-        <!-- Mobile Nav Bar (Bottom fixed or simple list below) -->
-        <!-- Keeping it simple for now as desktop was priority -->
+        <!-- Mobile Menu (Drawer) -->
+        <div x-show="mobileMenuOpen"
+            class="lg:hidden absolute top-16 left-0 w-full bg-white border-b border-gray-100 shadow-xl p-4 flex flex-col gap-4 z-40"
+            x-transition:enter="transition ease-out duration-200" x-transition:enter-start="opacity-0 -translate-y-2"
+            x-transition:enter-end="opacity-100 translate-y-0" style="display: none;">
+
+            <!-- Mobile Search -->
+            <form method="GET" action="index.php" class="relative w-full">
+                <input type="text" name="search" value="<?= htmlspecialchars($searchQuery ?? '') ?>"
+                    placeholder="Search sneakers..."
+                    class="w-full bg-gray-100 border-none rounded-lg pl-4 pr-10 py-3 text-sm focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24"
+                        stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                </button>
+            </form>
+
+            <nav class="flex flex-col gap-2 font-bold text-gray-800">
+                <a href="index.php?filter=all" class="py-2 border-b border-gray-50">Shop All</a>
+                <a href="index.php?filter=new" class="py-2 border-b border-gray-50">New Releases</a>
+                <a href="index.php?filter=sale" class="py-2 border-b border-gray-50 text-red-500">Sale</a>
+                <?php if ($currentUser): ?>
+                    <a href="index.php?filter=foryou" class="py-2 text-blue-600">For You</a>
+                    <a href="?action=logout" class="py-2 text-sm text-gray-500 font-normal">Log Out
+                        (<?= htmlspecialchars($_SESSION['user_name']) ?>)</a>
+                <?php else: ?>
+                    <div class="flex gap-2 mt-2">
+                        <a href="?page=login" class="flex-1 text-center py-2 border border-gray-200 rounded-lg text-sm">Log
+                            In</a>
+                        <a href="?page=signup"
+                            class="flex-1 text-center py-2 bg-black text-white rounded-lg text-sm shadow-md">Sign Up</a>
+                    </div>
+                <?php endif; ?>
+            </nav>
+        </div>
     </header>
 
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 mb-16">
 
         <!-- LOGIN PAGE -->
         <?php if ($page === 'login'): ?>
@@ -894,7 +897,7 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
             }">
 
                 <!-- GRID -->
-                <div x-ref="productGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-16">
+                <div x-ref="productGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6 mb-12">
                     <?php foreach ($displayProducts as $product): ?>
                         <?= renderProductCard($product); ?>
                     <?php endforeach; ?>
@@ -1069,6 +1072,54 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
             <p class="text-gray-400 text-sm">© 2025 sneakeazy Inc. All rights reserved.</p>
         </div>
     </footer>
+
+    <!-- BOTTOM MOBILE NAVIGATION (App-like) -->
+    <div
+        class="fixed bottom-0 left-0 w-full bg-white border-t border-gray-100 flex justify-around py-3 pb-safe z-50 md:hidden shadow-[0_-5px_15px_rgba(0,0,0,0.02)]">
+        <a href="index.php"
+            class="flex flex-col items-center gap-1 text-gray-400 <?= ($page === 'home' && !$searchQuery) ? 'text-black' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                <polyline points="9 22 9 12 15 12 15 22"></polyline>
+            </svg>
+            <span class="text-[10px] font-bold">Home</span>
+        </a>
+        <a href="javascript:void(0);" onclick="document.getElementById('mobile-search-trigger').click()"
+            class="flex flex-col items-center gap-1 text-gray-400">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <span class="text-[10px] font-bold">Search</span>
+        </a>
+        <!-- Invisible trigger for Alpine -->
+        <button id="mobile-search-trigger" class="hidden" @click="mobileMenuOpen = true"></button>
+
+        <a href="#" class="flex flex-col items-center gap-1 text-gray-400">
+            <div class="relative">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+                <?php if (false): ?><span
+                        class="absolute -top-1 -right-1 bg-red-500 w-2 h-2 rounded-full"></span><?php endif; ?>
+            </div>
+            <span class="text-[10px] font-bold">Cart</span>
+        </a>
+        <a href="<?= $currentUser ? '?page=detail' : '?page=login' ?>"
+            class="flex flex-col items-center gap-1 text-gray-400 <?= ($page === 'login' || $page === 'signup') ? 'text-black' : '' ?>">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+            <span class="text-[10px] font-bold"><?= $currentUser ? 'Me' : 'Login' ?></span>
+        </a>
+    </div>
 
 </body>
 
