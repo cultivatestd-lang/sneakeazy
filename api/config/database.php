@@ -45,11 +45,16 @@ function getDBConnection()
                 PDO::ATTR_EMULATE_PREPARES => false,
             ];
 
-            // If on a remote host (implied by non-localhost logic or specific ENV var), we might need SSL
-            // For many cloud providers (Aiven, PlanetScale), getting a clean connection is key.
-            // Often just connecting works, but if SSL is strictly required, we might need:
-            // if (getenv('DB_USE_SSL') === 'true') { $options[PDO::MYSQL_ATTR_SSL_CA] = '/path/to/cert'; }
-            // For simplicity in this demo, we assume standard auth works or the provider string is sufficient.
+            // Enable SSL for Cloud Databases (like TiDB running on port 4000)
+            if (DB_PORT === '4000' || DB_HOST !== '127.0.0.1') {
+                $options[PDO::MYSQL_ATTR_SSL_CA] = __DIR__ . '/cacert.pem';
+                if (file_exists(__DIR__ . '/cacert.pem')) {
+                    // CA file found
+                } else {
+                    // If local CA not found, try system default or disable verification
+                    // $options[PDO::MYSQL_ATTR_SSL_VERIFY_SERVER_CERT] = false;
+                }
+            }
 
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
         } catch (PDOException $e) {
