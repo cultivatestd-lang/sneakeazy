@@ -414,8 +414,8 @@ function renderProductCard($product)
                         // NEW Badge: Black text, Light Italic, No Rounded (Square), Visible background
                         echo '<span class="absolute top-0 left-0 bg-white/90 text-black text-[12px] font-light italic px-3 py-1 shadow-sm">New</span>';
                     } elseif ($product['badge_type'] === 'trending') {
-                        // Trending Badge: Transparent Dark
-                        echo '<span class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm border border-white/10">Trending</span>';
+                        // Trending Badge: Bottom Left, Italic Light, No Icon (Square-ish)
+                        echo '<span class="absolute bottom-0 left-0 bg-black/70 backdrop-blur-sm text-white text-[11px] font-light italic px-3 py-1 shadow-sm">Trending</span>';
                     }
                 }
                 ?>
