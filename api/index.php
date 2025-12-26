@@ -410,9 +410,7 @@ function renderProductCard($product)
                 <?php
                 // Badges for Recommendation Logic Visualization
                 if (isset($product['recommendation_score']) && $product['recommendation_score'] > 35) {
-                    if (isset($_SESSION['user_id'])) {
-                        echo '<span class="absolute top-2 left-2 bg-blue-600/90 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm">For You</span>';
-                    } else {
+                    if (!isset($_SESSION['user_id'])) {
                         // Transparent Trending Badge
                         echo '<span class="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white/90 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider shadow-sm border border-white/10">Trending</span>';
                     }
@@ -843,9 +841,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
                 </a>
 
                 <?php if ($currentUser): ?>
-                    <a href="index.php?filter=top-picks" class="flex justify-between items-center group py-2 text-blue-600">
+                    <a href="index.php?filter=top-picks" class="flex items-center group py-2 text-blue-600">
                         Top Picks
-                        <span class="text-blue-300 group-hover:text-blue-600 transition">★</span>
                     </a>
                     <a href="?action=logout" class="text-sm font-normal text-gray-400 mt-2">Log Out
                         (<?= htmlspecialchars($_SESSION['user_name']) ?>)</a>
