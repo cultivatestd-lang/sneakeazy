@@ -1,0 +1,57 @@
+runtime: php82
+
+# Gunakan instance class F1 (Free Tier friendly, performa standar)
+instance_class: F1
+
+# Konfigurasi Scaling Otomatis
+automatic_scaling:
+  max_instances: 5  # Biar ga boncos kalau traffic meledak tiba-tiba
+  min_instances: 0  # Bisa tidur kalau sepi (Hemat biaya)
+
+# Handler Routing (Arahkan semua request ke index.php)
+handlers:
+  # Serve static files (gambar, css, js) - Prioritas Utama
+  - url: /css
+    static_dir: css
+  - url: /images
+    static_dir: images
+
+  # --- PRETTY URL ROUTING ---
+  
+  # 1. Menu "Collection" atau "Main" -> Buka index.php
+  - url: /collection
+    script: index.php
+  - url: /main
+    script: index.php
+
+  # 2. Halaman Admin Stats (Lebih keren pakai /admin)
+  - url: /admin
+    script: stats.php
+  
+  # Masih support link lama juga
+  - url: /stats.php
+    script: stats.php
+  - url: /seed_cloud_db.php
+    script: stats.php # Redirect seeder ke stats aja biar aman
+    
+  # GENERATOR DUMMY DATA
+  - url: /seed_dummy.php
+    script: seed_dummy.php
+
+  # Fallback: Semua link lain masuk ke index.php
+  - url: .*
+    script: index.php
+
+env_variables:
+  # GANTI DENGA CONNECTION NAME DARI GOOGLE CLOUD SQL OVERVIEW
+  # Format: project-id:region:instance-id
+  INSTANCE_CONNECTION_NAME: "sneakeazy-app-v1:asia-southeast2:sneakeazy-sql"
+  
+  # GANTI DENGAN PASSWORD DATABASE YG KAMU BUAT
+  DB_PASS: "12345678"
+  
+  DB_USER: "root"
+  DB_NAME: "sneakeazy"
+  
+  # Jangan ubah ini (settingan socket Google Cloud)
+  DB_SOCKET_PATH: "/cloudsql"

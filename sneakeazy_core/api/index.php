@@ -12,109 +12,13 @@ $pdo = getDBConnection();
 
 // Load data from database
 try {
-    // Coba query simple untuk cek apakah tabel products sudah ada
-    // Gunakan LIMIT 1 agar ringan
-    $check_stmt = $pdo->query("SELECT 1 FROM products LIMIT 1");
-
     $productsStmt = $pdo->query("SELECT * FROM products ORDER BY id");
     $products = $productsStmt->fetchAll(PDO::FETCH_ASSOC);
 
     $interactionsStmt = $pdo->query("SELECT * FROM interactions");
     $interactions = $interactionsStmt->fetchAll(PDO::FETCH_ASSOC);
 } catch (PDOException $e) {
-    // Error Code 1146 = Table doesn't exist (or SQLSTATE '42S02')
-    if ($e->getCode() == '42S02' || strpos($e->getMessage(), '1146') !== false) {
-        // TABEL BELUM ADA! JALANKAN AUTO-SEEDING
-        try {
-            // 1. Create Tables
-            $queries = [
-                "CREATE TABLE IF NOT EXISTS users (
-                    id VARCHAR(255) PRIMARY KEY,
-                    name VARCHAR(255) NOT NULL,
-                    email VARCHAR(255) NOT NULL UNIQUE,
-                    password VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_email (email)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
-
-                "CREATE TABLE IF NOT EXISTS products (
-                    id VARCHAR(255) PRIMARY KEY,
-                    product_name VARCHAR(500) NOT NULL,
-                    brand VARCHAR(255) NOT NULL,
-                    original_price VARCHAR(100),
-                    sale_price VARCHAR(100) DEFAULT NULL,
-                    image_url TEXT,
-                    product_detail_url TEXT,
-                    rating DECIMAL(3,1) DEFAULT 0.0,
-                    rating_count INT DEFAULT 0,
-                    category VARCHAR(255) DEFAULT 'Sneakers',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    INDEX idx_brand (brand),
-                    INDEX idx_category (category),
-                    INDEX idx_rating (rating)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;",
-
-                "CREATE TABLE IF NOT EXISTS interactions (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
-                    product_id VARCHAR(255) NOT NULL,
-                    rating DECIMAL(2,1) DEFAULT NULL,
-                    view_count INT DEFAULT 0,
-                    view_score INT DEFAULT 0,
-                    timestamp INT NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-                    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-                    UNIQUE KEY unique_user_product (user_id, product_id)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;"
-            ];
-
-            foreach ($queries as $sql) {
-                $pdo->exec($sql);
-            }
-
-            // 2. Seed Data from JSON
-            $jsonFile = __DIR__ . '/data/products.json';
-            if (file_exists($jsonFile)) {
-                $jsonData = file_get_contents($jsonFile);
-                $productsData = json_decode($jsonData, true);
-
-                if ($productsData) {
-                    $insertStmt = $pdo->prepare("INSERT IGNORE INTO products 
-                        (id, product_name, brand, original_price, sale_price, image_url, product_detail_url, rating, rating_count, category) 
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-
-                    foreach ($productsData as $p) {
-                        $insertStmt->execute([
-                            $p['id'],
-                            $p['product_name'],
-                            $p['brand'],
-                            $p['original_price'],
-                            $p['sale_price'],
-                            $p['image_url'],
-                            $p['product_detail_url'],
-                            $p['rating'] ?? 0,
-                            $p['rating_count'] ?? 0,
-                            $p['category'] ?? 'Sneakers'
-                        ]);
-                    }
-                }
-            }
-
-            // Refresh halaman setelah seeding selesai
-            header("Refresh:0");
-            exit("Database Initialized! Reloading...");
-
-        } catch (Exception $seedError) {
-            die("Auto-Seeding Failed: " . $seedError->getMessage());
-        }
-    } else {
-        // Error lain (koneksi putus dll)
-        die("Database Error: " . $e->getMessage());
-    }
+    die("Error loading data: " . $e->getMessage());
 }
 
 $page = isset($_GET['page']) ? $_GET['page'] : 'home';
@@ -134,10 +38,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Score increments
     $increment = ($type === 'hover') ? 0.5 : 1.0;
 
-    // --- 4. PELACAKAN INTERAKSI (Interaction Tracking) ---
-    // Sistem mencatat perilaku pengguna secara real-time untuk memperbarui rekomendasi:
-    // **Hover (AJAX)**: Saat pengguna mengarahkan mouse ke kartu produk selama >2 detik,
-    // sistem mengirim sinyal background untuk menambah skor minat (+0.5).
     try {
         $checkStmt = $pdo->prepare("SELECT * FROM interactions WHERE user_id = ? AND product_id = ?");
         $checkStmt->execute([$userId, $productId]);
@@ -165,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// --- 4. PELACAKAN INTERAKSI (Interaction Tracking) ---
-// **View/Click**: Saat pengguna membuka halaman detail produk, skor minat bertambah (+1.0).
+// --- TRACK PRODUCT VIEW/CLICK (Legacy Page Load & Validation) ---
+// Track when user views/clicks a product (for collaborative filtering)
 if (isset($_GET['page']) && $_GET['page'] === 'detail' && isset($_GET['product_id']) && isset($_SESSION['user_id'])) {
     $productId = $_GET['product_id'];
     $userId = $_SESSION['user_id'];
@@ -258,9 +158,6 @@ if (isset($_GET['action']) && $_GET['action'] === 'logout') {
 }
 
 // --- RATING HANDLING ---
-// --- 4. PELACAKAN INTERAKSI (Interaction Tracking) ---
-// **Rating**: Skor minat tertinggi (eksplisit) yang sangat mempengaruhi rekomendasi masa depan.
-// Fitur ini diakses melalui POST action 'rate'.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'rate') {
     if (!isset($_SESSION['user_id'])) {
         header("Location: index.php?page=login");
@@ -499,18 +396,7 @@ function renderProductCard($product)
         @mouseenter="hoverTimer = setTimeout(() => { trackInteraction(<?= $product['id'] ?>) }, 2000)"
         @mouseleave="clearTimeout(hoverTimer)"
         class="group relative bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-100 animate-fade-in-up">
-
         <a href="?page=detail&product_id=<?= $product['id'] ?>" class="block">
-            <!-- DEBUG SCORE BADGE (Minimalist Transparent) -->
-            <?php if (isset($product['recommendation_score'])): ?>
-                <div class="absolute top-2 right-2 z-10 flex flex-col items-end gap-0.5 pointer-events-none">
-                    <div class="bg-white/90 backdrop-blur-md text-gray-900 border border-gray-100 shadow-sm text-[9px] font-bold px-1.5 py-0.5 rounded cursor-help"
-                        title="Algorithm Score">
-                        <?= intval($product['recommendation_score']) ?> PTS
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <!-- Image -->
             <div class="relative aspect-square w-full bg-gray-100">
                 <img src="<?= $product['image_url'] ?>" alt="<?= htmlspecialchars($product['product_name']) ?>"
@@ -518,7 +404,7 @@ function renderProductCard($product)
                     class="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500">
                 <?php if ($product['sale_price']): ?>
                     <span
-                        class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Sale</span>
+                        class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Sale</span>
                 <?php endif; ?>
 
                 <?php
@@ -593,95 +479,14 @@ if ($page === 'home' && !$searchQuery) {
         $scoredProducts = [];
 
         if ($filter === 'sale') {
-            // --- LOGIKA FILTER SALE DENGAN COLD START ROULETTE ---
-            // MARK: STEP 1 - FIXED SAMPLING (Pengambilan Data Tetap)
-            // Kita mengambil 30 sepatu yang SAMA persis dari database setiap saat.
-            // Menggunakan 'ORDER BY id' memastikan daftar barangnya tidak berubah-ubah (konsisten).
-            // Syarat: Harus punya harga diskon (sale_price).
-            $stmt = $pdo->query("SELECT * FROM products WHERE sale_price IS NOT NULL AND sale_price != '' ORDER BY id ASC LIMIT 30");
+            // SALE: Produk diskon, acak (Rekomendasi ringan)
+            // Mengambil produk yang memiliki sale_price
+            $stmt = $pdo->query("SELECT * FROM products WHERE sale_price IS NOT NULL ORDER BY RAND() LIMIT 50");
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // MARK: STEP 2 - COLD START SCORING (Pemberian Nilai)
-            // Di sini kita menerapkan logika "Cold Start" pada 30 barang yang sudah dipilih tadi.
-            // Tujuannya: Meski barangnya sama, kita ingin menonjolkan yang relevan dengan user.
             foreach ($rows as $p) {
-                $score = 0;
-
-                // A. User Match: Tambah skor jika kategori/brand sesuai selera user (jika login).
-                $score += calculateUserScore($p, $userPrefs);
-
-                // B. Social Proof: Tambah skor berdasarkan rating bintang produk tersebut (0-5).
-                // Dikali 3 agar rating berpengaruh cukup besar.
-                $score += (isset($p['rating']) ? floatval($p['rating']) * 3 : 0);
-
-                // C. The Roulette Factor (Faktor Acak):
-                // Tambahkan nilai acak 0-15 poin. Ini adalah "bumbu" ketidakpastian.
-                // Ini yang membuat urutan bisa berubah sedikit setiap kali refresh (Roulette).
-                $score += rand(0, 15);
-
-                $p['recommendation_score'] = $score;
-                $scoredProducts[] = ['product' => $p, 'score' => $score];
-            }
-
-            // MARK: STEP 3 - ROULETTE SORTING (Pengurutan Dinamis)
-            // Kita mengurutkan ulang 30 barang tersebut berdasarkan skor akhirnya.
-            usort($scoredProducts, function ($a, $b) {
-                // Aturan 1: Jika selisih skornya JAUH (>20 poin), yang skornya tinggi pasti di atas.
-                // (Contoh: Sepatu favorit user vs sepatu rating 1 bintang)
-                if (abs($a['score'] - $b['score']) > 20) {
-                    return $b['score'] <=> $a['score'];
-                }
-
-                // Aturan 2: Jika skornya MIRIP (selisih <= 20), lakukan "COIN TOSS" (Acak).
-                // Ini membuat barang-barang dengan kualitas setara akan saling bertukar posisi (efek Roulette).
-                return rand(-1, 1);
-            });
-        } elseif ($filter === 'features') {
-            // --- FITUR UNGGULAN (FEATURES) - OPTIMIZED SQL SCORING ---
-            // Menggunakan kekuatan MySQL untuk menghitung skor secara massal agar JAUH lebih cepat.
-            // Tidak lagi meloop 500 item di PHP.
-
-            // Siapkan bobot preferensi User untuk Query SQL
-            $catSql = "0"; // Default score
-            $brandSql = "0"; // Default score
-
-            if ($userPrefs) {
-                // Buat SQL Case untuk Kategori (Contoh: CASE WHEN category = 'Running' THEN 40 ... END)
-                if (!empty($userPrefs['categories'])) {
-                    $catSql = "CASE ";
-                    foreach ($userPrefs['categories'] as $idx => $cat) {
-                        $boost = max(10, 40 - ($idx * 10)); // Top 1: +40, Top 2: +30, dst.
-                        $catSql .= "WHEN category = " . $pdo->quote($cat) . " THEN $boost ";
-                    }
-                    $catSql .= "ELSE 0 END";
-                }
-
-                // Buat SQL Case untuk Brand
-                if (!empty($userPrefs['brands'])) {
-                    $brandSql = "CASE ";
-                    foreach ($userPrefs['brands'] as $idx => $brand) {
-                        $boost = max(5, 25 - ($idx * 5)); // Top 1: +25, Top 2: +20, dst.
-                        $brandSql .= "WHEN brand = " . $pdo->quote($brand) . " THEN $boost ";
-                    }
-                    $brandSql .= "ELSE 0 END";
-                }
-            }
-
-            // QUERY TEROPTIMASI: Hitung Total Skor langsung di Database!
-            // Formula: (Kecocokan Kategori) + (Kecocokan Brand) + (Rating Bintang * 5)
-            $sql = "SELECT *, 
-                    ( ($catSql) + ($brandSql) + (COALESCE(rating, 0) * 5) ) as rec_score 
-                    FROM products 
-                    ORDER BY rec_score DESC, id ASC 
-                    LIMIT 500";
-
-            $stmt = $pdo->query($sql);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Mapping hasil query ke format aplikasi
-            foreach ($rows as $p) {
-                $p['recommendation_score'] = $p['rec_score']; // Pakai skor dari SQL
-                $scoredProducts[] = ['product' => $p, 'score' => $p['rec_score']];
+                // Beri score acak agar tetap ada variasi visual badge
+                $p['recommendation_score'] = rand(50, 90);
+                $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
             }
 
         } elseif ($filter === 'new') {
@@ -697,137 +502,27 @@ if ($page === 'home' && !$searchQuery) {
             }
 
         } elseif ($filter === 'top-picks') {
-            // 2. FITUR "TOP PICKS" (REKOMENDASI UTAMA)
-            // Fitur ini dapat diakses melalui filter `Top Picks` (`?filter=top-picks`) dan merupakan inti dari personalisasi sistem.
-
-            // --- Logika Awal (Authentication Guard) ---
-            // Sistem memeriksa apakah pengguna sudah login.
-            // Jika belum, pengguna akan diarahkan (redirect) ke halaman login. 
-            // Hal ini memastikan bahwa rekomendasi yang diberikan benar-benar dipersonalisasi.
+            // TOP PICKS: Hanya untuk User Login (KNN / Collaborative / Personalized)
+            // No Badges explicitly requested ("hapus logo bintang ... tulisan for you ...")
             if (!$currentUser) {
                 header("Location: ?page=login");
                 exit;
             }
 
-            // 1. Cek apakah user sudah pernah rating?
-            $hasRatingsStmt = $pdo->prepare("SELECT COUNT(*) FROM interactions WHERE user_id = ? AND rating IS NOT NULL");
-            $hasRatingsStmt->execute([$_SESSION['user_id']]);
-            $hasRatings = $hasRatingsStmt->fetchColumn() > 0;
-
-            $allProductsStmt = $pdo->query("SELECT * FROM products LIMIT 500");
+            $allProductsStmt = $pdo->query("SELECT * FROM products LIMIT 300");
             $allProducts = $allProductsStmt->fetchAll(PDO::FETCH_ASSOC);
 
-            if ($hasRatings) {
-                // A. PENGGUNA YANG SUDAH MEMBERIKAN RATING (Punya Histori)
-                // Jika pengguna sudah pernah memberi rating pada produk, sistem menggunakan Collaborative Filtering yang dioptimalkan:
+            foreach ($allProducts as $p) {
+                $score = calculateUserScore($p, $userPrefs);
+                $score += (isset($p['rating']) ? floatval($p['rating']) * 2 : 0);
+                $score += rand(0, 5);
 
-                // 1. Pengambilan Data Terpusat (Optimization)
-                // - Sistem mengambil 5 produk dengan rating tertinggi (bintang 4 atau 5) dari histori pengguna.
-                // - Sistem melakukan "Pre-fetch" data item-to-item similarity dari database *sekaligus* untuk menghindari N+1 Query Problem.
-                // - Sistem juga memuat semua interaksi rating/view pengguna ke dalam memori (hash map) untuk akses cepat.
-
-                // OPTIMIZED: Fetch all data first to avoid N+1 Query Problem (Slowness)
-
-                // 1. Get user's top rated products IDs
-                $topRatedStmt = $pdo->prepare("SELECT product_id FROM interactions WHERE user_id = ? AND rating >= 4 ORDER BY rating DESC LIMIT 5");
-                $topRatedStmt->execute([$_SESSION['user_id']]);
-                $userTopProductIds = $topRatedStmt->fetchAll(PDO::FETCH_COLUMN);
-
-                // 2. Pre-fetch Collaborative Data (Neighbors)
-                $collabMap = []; // [product_id => total_boost_score]
-                foreach ($userTopProductIds as $likedPid) {
-                    $neighbors = getCollaborativeScores($likedPid, $pdo);
-                    foreach ($neighbors as $nPid => $nScore) {
-                        if (!isset($collabMap[$nPid]))
-                            $collabMap[$nPid] = 0;
-                        $collabMap[$nPid] += ($nScore * 2); // Accumulate relevance
-                    }
-                }
-
-                // 3. Pre-fetch User's Own Interactions (Hash Map for O(1) Lookup)
-                $myInteractionsStmt = $pdo->prepare("SELECT product_id, rating, view_score FROM interactions WHERE user_id = ?");
-                $myInteractionsStmt->execute([$_SESSION['user_id']]);
-                $myInteractionsRaw = $myInteractionsStmt->fetchAll(PDO::FETCH_ASSOC);
-                $myInteractions = [];
-                foreach ($myInteractionsRaw as $row) {
-                    $myInteractions[$row['product_id']] = $row;
-                }
-
-                // 4. Penghitungan Skor (In-Memory Scoring)
-                // Sistem menghitung skor untuk setiap produk (dari 500 produk sampel) secara instan di memori:
-                foreach ($allProducts as $p) {
-                    $score = 0;
-                    $pid = $p['id'];
-
-                    // Skor Dasar: Diambil dari rating global produk.
-                    $score += (isset($p['rating']) ? floatval($p['rating']) * 1 : 0);
-
-                    // Collaborative Boost: 
-                    // Jika produk ini sering disukai oleh orang lain yang juga menyukai produk favorit Anda, 
-                    // skornya ditambah (+100 poin maks).
-                    if (isset($collabMap[$pid])) {
-                        $score += min(100, $collabMap[$pid]);
-                    }
-
-                    // Content Match: Menambah nilai jika kategori/merek cocok dengan preferensi pengguna.
-                    $score += calculateUserScore($p, $userPrefs);
-
-                    // Priority Boost (Histori Sendiri):
-                    if (isset($myInteractions[$pid])) {
-                        $interaction = $myInteractions[$pid];
-                        if (isset($interaction['rating']) && $interaction['rating'] > 0) {
-                            // Tier 1 (Rated): Produk yang diberi rating oleh pengguna mendapat lonjakan skor +1000 hingga +1500 poin. 
-                            // Wajib muncul paling atas.
-                            $score += 1000 + ($interaction['rating'] * 100);
-                        } elseif (isset($interaction['view_score']) && $interaction['view_score'] > 0) {
-                            // Tier 2 (Viewed): Produk yang pernah dilihat pengguna mendapat +500 poin.
-                            $score += 500 + ($interaction['view_score'] * 10);
-                        }
-                    }
-
-                    $p['recommendation_score'] = $score;
-                    $scoredProducts[] = ['product' => $p, 'score' => $score];
-                }
-
-            } else {
-                // B. PENGGUNA BARU / BELUM MEMBERIKAN RATING (Cold Start)
-                // Jika pengguna baru dan belum memberi rating, sistem menggunakan pendekatan Implicit Preference (Content-Based) + Social Proof:
-
-                // 1. User Profiling: Sistem membaca histori view (klik/hover) pengguna untuk menentukan merek dan kategori favorit.
-                // 2. Social Proof: Produk dengan rating global tinggi diberi bobot lebih.
-                // 3. Randomness (Roulette): Faktor acak ditambahkan agar pengguna baru mendapatkan variasi produk untuk dieksplorasi.
-                foreach ($allProducts as $p) {
-                    // Use the User Profiling Function (KNN-like clustering of attributes)
-                    $score = calculateUserScore($p, $userPrefs);
-
-                    // Boost high rated items globally (Social Proof)
-                    $score += (isset($p['rating']) ? floatval($p['rating']) * 3 : 0);
-
-                    // Randomness for exploration (Dynamic Roulette)
-                    $score += rand(0, 15); // Increased randomness factor
-
-                    $p['recommendation_score'] = $score;
-                    $scoredProducts[] = ['product' => $p, 'score' => $score];
-                }
+                $p['recommendation_score'] = $score;
+                // No badge_type set
+                $scoredProducts[] = ['product' => $p, 'score' => $score];
             }
-
-            // --- 3. LOGIKA PENGURUTAN DINAMIS (Dynamic Roulette) ---
-            // Sistem tidak hanya mengurutkan berdasarkan skor tertinggi secara kaku (statis), 
-            // tetapi menggunakan metode Roulette/Shuffle agar tampilan selalu segar.
-
-            // Cara Kerja:
-            // 1. Setelah semua produk diberi skor, sistem melakukan pengurutan.
-            // 2. Jika selisih skor antar dua produk besar (>50 poin), produk dengan skor lebih tinggi menang.
-            // 3. Jika selisih skor kecil (produk mirip relevansinya), posisinya diacak.
-            //    Efek: Setiap kali pengguna me-refresh halaman, urutan produk yang relevan akan berubah-ubah, 
-            //    memberikan pengalaman penemuan (discovery) yang dinamis.
             usort($scoredProducts, function ($a, $b) {
-                // Primary Sort: Score
-                if (abs($a['score'] - $b['score']) > 50) {
-                    return $b['score'] <=> $a['score'];
-                }
-                // Secondary Sort: Random Shuffle for similar scores (The Roulette)
-                return rand(-1, 1);
+                return $b['score'] <=> $a['score'];
             });
 
         } else {
@@ -1027,8 +722,9 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- Desktop Nav -->
             <nav class="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wider uppercase text-gray-800">
-                <a href="index.php?filter=features" class="hover:text-blue-600 transition-colors">Features</a>
+                <a href="index.php?filter=all" class="hover:text-blue-600 transition-colors">Shop By</a>
                 <a href="index.php?filter=new" class="hover:text-blue-600 transition-colors">Releases</a>
+                <a href="index.php?filter=brands" class="hover:text-blue-600 transition-colors">Brands</a>
                 <a href="index.php?filter=sale" class="text-red-500 hover:text-red-600 transition-colors">Sale</a>
                 <?php if ($currentUser): ?>
                     <a href="index.php?filter=foryou" class="text-blue-600">For You</a>
@@ -1128,8 +824,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- Simplified Menu Links (No Search) -->
             <nav class="flex flex-col gap-4 font-bold text-gray-800 text-lg">
-                <a href="index.php?filter=features" class="flex items-center group py-2 border-b border-gray-50">
-                    Features
+                <a href="index.php?filter=all" class="flex items-center group py-2 border-b border-gray-50">
+                    Shop All
                 </a>
                 <a href="index.php?filter=new" class="flex items-center group py-2 border-b border-gray-50">
                     New Releases

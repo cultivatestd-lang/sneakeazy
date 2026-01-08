@@ -1,7 +1,115 @@
+# ============================================
+# SneakEazy .gitignore
+# ============================================
+
+# macOS
 .DS_Store
-*.log
-*.sqlite
+.AppleDouble
+.LSOverride
+._*
+
+# Thumbnails
+Thumbs.db
+
+# IDE & Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-project
+*.sublime-workspace
+
+# Environment & Config
 .env
-node_modules/
+.env.local
+.env.*.local
+config/local.php
+
+# Database
+*.sql.gz
+*.sql.zip
+database_backup/
+*.db
+
+# Logs
+*.log
+logs/
+tunnel.log
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Vendor & Dependencies
 vendor/
-.vercel/
+node_modules/
+composer.lock
+package-lock.json
+
+# Build & Cache
+cache/
+*.cache
+build/
+
+# Uploads & User Generated Content
+uploads/
+user_uploads/
+
+# Archives
+*.zip
+*.tar
+*.tar.gz
+*.rar
+*.7z
+sneakeazy_upload.zip
+
+# Sensitive files
+cacert.pem
+*.pem
+*.key
+*.crt
+
+# Google Cloud
+.gcloudignore
+gcloud_config/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Testing
+coverage/
+.coverage
+.pytest_cache/
+
+# Documentation builds
+docs/_build/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# OS generated files
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Keep important files
+!.gitkeep
+!README.md
+!LICENSE

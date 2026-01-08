@@ -1,140 +1,275 @@
-# Setup Database untuk Shoe Recommender
+# 📊 Database Setup Guide - SneakEazy
 
-## Persyaratan
-- MAMP terinstall dan berjalan
-- MySQL/MariaDB aktif pada port 8889 (default MAMP)
+Panduan lengkap untuk setup database SneakEazy di local dan cloud.
 
-## Langkah Setup
+## 🎯 Quick Setup (Recommended)
 
-### 1. Buat Database
-1. Buka phpMyAdmin: http://localhost:8888/phpMyAdmin5/index.php?route=/server/databases
-2. Atau buka terminal dan jalankan:
+### Opsi 1: Auto-Seeding (Paling Mudah!)
+
+Aplikasi akan otomatis membuat database saat pertama kali diakses:
+
+1. Pastikan MAMP/XAMPP sudah running
+2. Jalankan aplikasi: `php -S localhost:8000`
+3. Buka browser: `http://localhost:8000`
+4. Database akan otomatis dibuat dan di-seed dengan data
+
+### Opsi 2: Manual Import (Full Control)
 
 ```bash
-# Login ke MySQL
-mysql -u root -proot -h 127.0.0.1 -P 8889
+# 1. Masuk ke MySQL
+mysql -u root -p -P 8889
 
-# Buat database
-CREATE DATABASE IF NOT EXISTS shoe_recommender CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+# 2. Import complete database
+source database/sneakeazy_complete.sql
+
+# 3. Verifikasi
+USE sneakeazy;
+SHOW TABLES;
+SELECT COUNT(*) FROM products;
+SELECT COUNT(*) FROM users;
 ```
 
-### 2. Import Schema
-Jalankan file SQL untuk membuat tabel:
+## 📋 Database Configuration
 
-**Opsi A: Via phpMyAdmin**
-1. Buka phpMyAdmin: http://localhost:8888/phpMyAdmin5/
-2. Pilih database `shoe_recommender`
-3. Klik tab "SQL"
-4. Copy-paste isi file `database/schema.sql`
-5. Klik "Go"
+### Local Development (MAMP)
 
-**Opsi B: Via Terminal**
+File: `config/database.php`
+
+```php
+$db_host = '127.0.0.1';
+$db_port = '8889';           // MAMP MySQL port
+$db_name = 'sneakeazy';
+$db_user = 'root';
+$db_pass = 'root';
+```
+
+### Local Development (XAMPP)
+
+```php
+$db_host = '127.0.0.1';
+$db_port = '3306';           // XAMPP MySQL port
+$db_name = 'sneakeazy';
+$db_user = 'root';
+$db_pass = '';               // Default XAMPP password is empty
+```
+
+### Cloud (Google Cloud SQL)
+
+Environment variables di `app.yaml`:
+
+```yaml
+env_variables:
+  DB_USER: "root"
+  DB_PASS: "your_secure_password"
+  DB_NAME: "sneakeazy"
+  INSTANCE_CONNECTION_NAME: "project-id:region:instance-name"
+```
+
+## 🗂️ Database Structure
+
+### Tables Overview
+
+| Table | Records | Description |
+|-------|---------|-------------|
+| `users` | 54 | User accounts (dummy + real) |
+| `products` | 600+ | Shoe products from JSON |
+| `interactions` | 1700+ | User-product interactions |
+
+### Schema Details
+
+#### Table: `users`
+```sql
+CREATE TABLE users (
+    id VARCHAR(255) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    email VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+```
+
+#### Table: `products`
+```sql
+CREATE TABLE products (
+    id VARCHAR(255) PRIMARY KEY,
+    product_name VARCHAR(500),
+    brand VARCHAR(255),
+    original_price VARCHAR(100),
+    sale_price VARCHAR(100),
+    image_url TEXT,
+    product_detail_url TEXT,
+    rating DECIMAL(3,1),
+    rating_count INT,
+    category VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+```
+
+#### Table: `interactions`
+```sql
+CREATE TABLE interactions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id VARCHAR(255),
+    product_id VARCHAR(255),
+    rating DECIMAL(2,1),
+    view_count INT DEFAULT 0,
+    view_score INT DEFAULT 0,
+    timestamp INT,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id),
+    FOREIGN KEY (product_id) REFERENCES products(id),
+    UNIQUE (user_id, product_id)
+);
+```
+
+## 🔧 Troubleshooting
+
+### Error: "Access denied for user"
+
 ```bash
-mysql -u root -proot -h 127.0.0.1 -P 8889 shoe_recommender < database/schema.sql
+# Reset MySQL password (MAMP)
+# 1. Stop MySQL
+# 2. Start MySQL with skip-grant-tables
+# 3. Reset password
+ALTER USER 'root'@'localhost' IDENTIFIED BY 'root';
+FLUSH PRIVILEGES;
 ```
 
-### 3. Migrasikan Data dari JSON ke Database
-Jalankan script migrasi:
+### Error: "Database does not exist"
 
-**Via Browser:**
-Buka: http://localhost:8888/php-shoe-recommender/migrate_to_database.php
-
-**Via Terminal:**
 ```bash
-cd php-shoe-recommender
-php migrate_to_database.php
+# Create database manually
+mysql -u root -p -P 8889
+CREATE DATABASE sneakeazy CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 ```
-
-Script ini akan:
-- Migrasi semua user dari `data/users.json` ke tabel `users`
-- Migrasi semua produk dari `data/products.json` ke tabel `products`
-- Migrasi semua interaksi dari `data/interactions.json` ke tabel `interactions`
-
-### 4. Verifikasi
-1. Buka phpMyAdmin
-2. Pilih database `shoe_recommender`
-3. Cek apakah tabel `users`, `products`, dan `interactions` sudah ada
-4. Cek apakah data sudah terisi
-
-## Konfigurasi Database
-
-File konfigurasi: `config/database.php`
-
-Default settings untuk MAMP:
-- Host: localhost
-- Port: 8889
-- Database: shoe_recommender
-- User: root
-- Password: root
-
-Jika berbeda, edit file `config/database.php`.
-
-## Struktur Database
-
-### Tabel: users
-- `id` (VARCHAR): ID unik user
-- `name` (VARCHAR): Nama user
-- `email` (VARCHAR): Email user (unique)
-- `password` (VARCHAR): Password hash
-- `created_at`, `updated_at`: Timestamps
-
-### Tabel: products
-- `id` (VARCHAR): ID unik produk
-- `product_name` (VARCHAR): Nama produk
-- `brand` (VARCHAR): Brand produk
-- `original_price`, `sale_price` (VARCHAR): Harga
-- `image_url`, `product_detail_url` (TEXT): URL gambar dan detail
-- `rating` (DECIMAL): Rating rata-rata
-- `rating_count` (INT): Jumlah rating
-- `category` (VARCHAR): Kategori produk
-- `created_at`, `updated_at`: Timestamps
-
-### Tabel: interactions
-- `id` (INT AUTO_INCREMENT): Primary key
-- `user_id` (VARCHAR): Foreign key ke users
-- `product_id` (VARCHAR): Foreign key ke products
-- `rating` (DECIMAL): Rating 1-5 (nullable)
-- `view_count` (INT): Jumlah kali user melihat produk (default: 0)
-- `view_score` (INT): Skor dari views (1 poin per view, max 5) (default: 0)
-- `timestamp` (INT): Unix timestamp
-- `created_at`, `updated_at`: Timestamps
-
-**Unique constraint:** (user_id, product_id) - satu user hanya satu record per produk
-
-## Fitur View/Click Tracking
-
-Sistem tracking otomatis:
-- Setiap kali user yang login membuka halaman detail produk, sistem akan:
-  1. Mencari record interaction untuk user dan produk tersebut
-  2. Jika ada: increment `view_count` (maks 5) dan update `view_score`
-  3. Jika tidak ada: buat record baru dengan `view_count = 1` dan `view_score = 1`
-
-- Scoring system:
-  - 1 klik = 1 poin
-  - 2 klik = 2 poin
-  - ...
-  - Maksimal 5 poin (maks 5 klik)
-  
-- Data ini digunakan untuk collaborative filtering di sistem rekomendasi
-
-## Troubleshooting
-
-### Error: "Database connection failed"
-- Pastikan MAMP MySQL berjalan
-- Cek port MySQL di MAMP (biasanya 8889)
-- Cek credentials di `config/database.php`
 
 ### Error: "Table doesn't exist"
-- Pastikan schema.sql sudah diimport
-- Cek apakah database `shoe_recommender` sudah dibuat
 
-### Error: "Access denied"
-- Cek username dan password MySQL di `config/database.php`
-- Default MAMP: user=`root`, password=`root`
+```bash
+# Re-import schema
+mysql -u root -p -P 8889 sneakeazy < database/sneakeazy_complete.sql
+```
 
+### Products tidak muncul
 
+```bash
+# Check if products table has data
+mysql -u root -p -P 8889
+USE sneakeazy;
+SELECT COUNT(*) FROM products;
 
+# If empty, aplikasi akan auto-seed dari products.json
+# Atau import manual via phpMyAdmin
+```
 
+## 📊 Verify Installation
 
+### Via MySQL Command Line
 
+```sql
+USE sneakeazy;
 
+-- Check tables
+SHOW TABLES;
+
+-- Check record counts
+SELECT 'users' as table_name, COUNT(*) as count FROM users
+UNION ALL
+SELECT 'products', COUNT(*) FROM products
+UNION ALL
+SELECT 'interactions', COUNT(*) FROM interactions;
+
+-- Sample data
+SELECT * FROM products LIMIT 5;
+SELECT * FROM users LIMIT 5;
+SELECT * FROM interactions LIMIT 10;
+```
+
+### Via phpMyAdmin
+
+1. Buka `http://localhost:8889/phpMyAdmin/`
+2. Login: `root` / `root`
+3. Pilih database `sneakeazy`
+4. Check semua tabel ada dan berisi data
+
+## 🌐 Cloud Database Setup
+
+### Google Cloud SQL
+
+```bash
+# 1. Create Cloud SQL instance
+gcloud sql instances create sneakeazy-sql \
+  --database-version=MYSQL_8_0 \
+  --tier=db-f1-micro \
+  --region=asia-southeast2
+
+# 2. Set root password
+gcloud sql users set-password root \
+  --host=% \
+  --instance=sneakeazy-sql \
+  --password=YOUR_SECURE_PASSWORD
+
+# 3. Create database
+gcloud sql databases create sneakeazy \
+  --instance=sneakeazy-sql
+
+# 4. Import data
+gcloud sql import sql sneakeazy-sql \
+  gs://YOUR_BUCKET/sneakeazy_complete.sql \
+  --database=sneakeazy
+```
+
+## 📝 Data Files
+
+### Location
+
+```
+data/
+├── products.json        # 600+ produk sepatu
+├── users.json          # 54 dummy users
+└── interactions.json   # 1700+ interaksi
+```
+
+### Import via PHP
+
+Aplikasi otomatis import dari JSON saat:
+- Database kosong
+- Tabel products kosong
+- First access ke aplikasi
+
+### Manual Import
+
+Gunakan script di `proc/`:
+- `generate_interactions_sql.py` - Generate SQL dari JSON
+- `seed_cloud_db.php` - Seed ke cloud database
+
+## ✅ Checklist
+
+Sebelum push ke GitHub, pastikan:
+
+- [ ] Database `sneakeazy` sudah dibuat
+- [ ] Semua tabel (users, products, interactions) ada
+- [ ] Products table berisi 600+ records
+- [ ] Users table berisi 54 records
+- [ ] Interactions table berisi 1700+ records
+- [ ] Aplikasi bisa akses database tanpa error
+- [ ] File `config/database.php` sudah dikonfigurasi
+- [ ] File `.gitignore` sudah exclude file sensitive
+
+## 🚀 Next Steps
+
+Setelah database setup:
+
+1. Test aplikasi: `php -S localhost:8000`
+2. Buka browser: `http://localhost:8000`
+3. Test fitur rekomendasi
+4. Test filter (New, Sale, Brand)
+5. Test rating system
+6. Ready to push ke GitHub!
+
+---
+
+**Need Help?** Check `proc/FLOW_DOCUMENTATION.md` untuk detail alur sistem.

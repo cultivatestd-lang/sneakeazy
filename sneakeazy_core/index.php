@@ -499,18 +499,7 @@ function renderProductCard($product)
         @mouseenter="hoverTimer = setTimeout(() => { trackInteraction(<?= $product['id'] ?>) }, 2000)"
         @mouseleave="clearTimeout(hoverTimer)"
         class="group relative bg-white rounded-xl overflow-hidden hover:shadow-lg transition-all duration-300 border border-gray-100 animate-fade-in-up">
-
         <a href="?page=detail&product_id=<?= $product['id'] ?>" class="block">
-            <!-- DEBUG SCORE BADGE (Minimalist Transparent) -->
-            <?php if (isset($product['recommendation_score'])): ?>
-                <div class="absolute top-2 right-2 z-10 flex flex-col items-end gap-0.5 pointer-events-none">
-                    <div class="bg-white/90 backdrop-blur-md text-gray-900 border border-gray-100 shadow-sm text-[9px] font-bold px-1.5 py-0.5 rounded cursor-help"
-                        title="Algorithm Score">
-                        <?= intval($product['recommendation_score']) ?> PTS
-                    </div>
-                </div>
-            <?php endif; ?>
-
             <!-- Image -->
             <div class="relative aspect-square w-full bg-gray-100">
                 <img src="<?= $product['image_url'] ?>" alt="<?= htmlspecialchars($product['product_name']) ?>"
@@ -518,7 +507,7 @@ function renderProductCard($product)
                     class="h-full w-full object-cover object-center group-hover:scale-105 transition-transform duration-500">
                 <?php if ($product['sale_price']): ?>
                     <span
-                        class="absolute top-2 left-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Sale</span>
+                        class="absolute top-2 right-2 bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wider">Sale</span>
                 <?php endif; ?>
 
                 <?php
@@ -593,95 +582,14 @@ if ($page === 'home' && !$searchQuery) {
         $scoredProducts = [];
 
         if ($filter === 'sale') {
-            // --- LOGIKA FILTER SALE DENGAN COLD START ROULETTE ---
-            // MARK: STEP 1 - FIXED SAMPLING (Pengambilan Data Tetap)
-            // Kita mengambil 30 sepatu yang SAMA persis dari database setiap saat.
-            // Menggunakan 'ORDER BY id' memastikan daftar barangnya tidak berubah-ubah (konsisten).
-            // Syarat: Harus punya harga diskon (sale_price).
-            $stmt = $pdo->query("SELECT * FROM products WHERE sale_price IS NOT NULL AND sale_price != '' ORDER BY id ASC LIMIT 30");
+            // SALE: Produk diskon, acak (Rekomendasi ringan)
+            // Mengambil produk yang memiliki sale_price
+            $stmt = $pdo->query("SELECT * FROM products WHERE sale_price IS NOT NULL ORDER BY RAND() LIMIT 50");
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // MARK: STEP 2 - COLD START SCORING (Pemberian Nilai)
-            // Di sini kita menerapkan logika "Cold Start" pada 30 barang yang sudah dipilih tadi.
-            // Tujuannya: Meski barangnya sama, kita ingin menonjolkan yang relevan dengan user.
             foreach ($rows as $p) {
-                $score = 0;
-
-                // A. User Match: Tambah skor jika kategori/brand sesuai selera user (jika login).
-                $score += calculateUserScore($p, $userPrefs);
-
-                // B. Social Proof: Tambah skor berdasarkan rating bintang produk tersebut (0-5).
-                // Dikali 3 agar rating berpengaruh cukup besar.
-                $score += (isset($p['rating']) ? floatval($p['rating']) * 3 : 0);
-
-                // C. The Roulette Factor (Faktor Acak):
-                // Tambahkan nilai acak 0-15 poin. Ini adalah "bumbu" ketidakpastian.
-                // Ini yang membuat urutan bisa berubah sedikit setiap kali refresh (Roulette).
-                $score += rand(0, 15);
-
-                $p['recommendation_score'] = $score;
-                $scoredProducts[] = ['product' => $p, 'score' => $score];
-            }
-
-            // MARK: STEP 3 - ROULETTE SORTING (Pengurutan Dinamis)
-            // Kita mengurutkan ulang 30 barang tersebut berdasarkan skor akhirnya.
-            usort($scoredProducts, function ($a, $b) {
-                // Aturan 1: Jika selisih skornya JAUH (>20 poin), yang skornya tinggi pasti di atas.
-                // (Contoh: Sepatu favorit user vs sepatu rating 1 bintang)
-                if (abs($a['score'] - $b['score']) > 20) {
-                    return $b['score'] <=> $a['score'];
-                }
-
-                // Aturan 2: Jika skornya MIRIP (selisih <= 20), lakukan "COIN TOSS" (Acak).
-                // Ini membuat barang-barang dengan kualitas setara akan saling bertukar posisi (efek Roulette).
-                return rand(-1, 1);
-            });
-        } elseif ($filter === 'features') {
-            // --- FITUR UNGGULAN (FEATURES) - OPTIMIZED SQL SCORING ---
-            // Menggunakan kekuatan MySQL untuk menghitung skor secara massal agar JAUH lebih cepat.
-            // Tidak lagi meloop 500 item di PHP.
-
-            // Siapkan bobot preferensi User untuk Query SQL
-            $catSql = "0"; // Default score
-            $brandSql = "0"; // Default score
-
-            if ($userPrefs) {
-                // Buat SQL Case untuk Kategori (Contoh: CASE WHEN category = 'Running' THEN 40 ... END)
-                if (!empty($userPrefs['categories'])) {
-                    $catSql = "CASE ";
-                    foreach ($userPrefs['categories'] as $idx => $cat) {
-                        $boost = max(10, 40 - ($idx * 10)); // Top 1: +40, Top 2: +30, dst.
-                        $catSql .= "WHEN category = " . $pdo->quote($cat) . " THEN $boost ";
-                    }
-                    $catSql .= "ELSE 0 END";
-                }
-
-                // Buat SQL Case untuk Brand
-                if (!empty($userPrefs['brands'])) {
-                    $brandSql = "CASE ";
-                    foreach ($userPrefs['brands'] as $idx => $brand) {
-                        $boost = max(5, 25 - ($idx * 5)); // Top 1: +25, Top 2: +20, dst.
-                        $brandSql .= "WHEN brand = " . $pdo->quote($brand) . " THEN $boost ";
-                    }
-                    $brandSql .= "ELSE 0 END";
-                }
-            }
-
-            // QUERY TEROPTIMASI: Hitung Total Skor langsung di Database!
-            // Formula: (Kecocokan Kategori) + (Kecocokan Brand) + (Rating Bintang * 5)
-            $sql = "SELECT *, 
-                    ( ($catSql) + ($brandSql) + (COALESCE(rating, 0) * 5) ) as rec_score 
-                    FROM products 
-                    ORDER BY rec_score DESC, id ASC 
-                    LIMIT 500";
-
-            $stmt = $pdo->query($sql);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Mapping hasil query ke format aplikasi
-            foreach ($rows as $p) {
-                $p['recommendation_score'] = $p['rec_score']; // Pakai skor dari SQL
-                $scoredProducts[] = ['product' => $p, 'score' => $p['rec_score']];
+                // Beri score acak agar tetap ada variasi visual badge
+                $p['recommendation_score'] = rand(50, 90);
+                $scoredProducts[] = ['product' => $p, 'score' => $p['recommendation_score']];
             }
 
         } elseif ($filter === 'new') {
@@ -1027,8 +935,9 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- Desktop Nav -->
             <nav class="hidden lg:flex items-center gap-8 text-[13px] font-bold tracking-wider uppercase text-gray-800">
-                <a href="index.php?filter=features" class="hover:text-blue-600 transition-colors">Features</a>
+                <a href="index.php?filter=all" class="hover:text-blue-600 transition-colors">Shop By</a>
                 <a href="index.php?filter=new" class="hover:text-blue-600 transition-colors">Releases</a>
+                <a href="index.php?filter=brands" class="hover:text-blue-600 transition-colors">Brands</a>
                 <a href="index.php?filter=sale" class="text-red-500 hover:text-red-600 transition-colors">Sale</a>
                 <?php if ($currentUser): ?>
                     <a href="index.php?filter=foryou" class="text-blue-600">For You</a>
@@ -1128,8 +1037,8 @@ if ($page === 'detail' && isset($_GET['product_id'])) {
 
             <!-- Simplified Menu Links (No Search) -->
             <nav class="flex flex-col gap-4 font-bold text-gray-800 text-lg">
-                <a href="index.php?filter=features" class="flex items-center group py-2 border-b border-gray-50">
-                    Features
+                <a href="index.php?filter=all" class="flex items-center group py-2 border-b border-gray-50">
+                    Shop All
                 </a>
                 <a href="index.php?filter=new" class="flex items-center group py-2 border-b border-gray-50">
                     New Releases
